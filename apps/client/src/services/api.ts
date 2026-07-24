@@ -77,6 +77,12 @@ export const api = {
   revokeApiKey: (id: string) =>
     request<{ success: boolean }>(`/api/apikeys/${id}`, { method: 'DELETE' }),
 
+  listMcpClients: () =>
+    request<{ client_id: string; client_name: string; redirect_uri: string; created_at: string; active: boolean }[]>('/api/mcp/clients'),
+
+  revokeMcpClient: (clientId: string) =>
+    request<{ success: boolean }>(`/api/mcp/clients/${clientId}`, { method: 'DELETE' }),
+
   registerMcpClient: (assistant: 'claude' | 'chatgpt') =>
     request<{
       client_id: string

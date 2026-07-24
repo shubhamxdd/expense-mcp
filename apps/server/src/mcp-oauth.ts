@@ -447,6 +447,62 @@ mcpApiRouter.post('/mcp/register', async (req, res) => {
   }
 })
 
+mcpApiRouter.get('/mcp/clients', async (req, res) => {
+  try {
+    const user = (req as any).user
+    if (!user?.userId) {
+      res.status(401).json({ error: 'Not authenticated' })
+      return
+    }
+
+    const db = await getDb()
+    const rows = queryAll(db, `SELECT DISTINCT c.client_id, c.client_name, c.redirect_uris, c.created_at,
+      (SELECT COUNT(*) FROM oauth_tokens t WHERE t.client_id = c.client_id AND t.user_id = ? AND t.revoked_at IS NULL) as token_count
+      FROM oauth_clients c
+      WHERE EXISTS (SELECT 1 FROM oauth_tokens t WHERE t.client_id = c.client_id AND t.user_id = ? AND t.revoked_at IS NULL)
+      ORDER BY c.created_at DESC`, [user.userId, user.userId])
+
+    res.json({
+      data: rows.map(r => ({
+        client_id: r.client_id,
+        client_name: r.client_name || extractDomain(String(r.redirect_uris || '')),
+        redirect_uri: extractFirstUri(String(r.redirect_uris || '')),
+        created_at: r.created_at,
+        active: Number(r.token_count) > 0,
+      })),
+    })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+mcpApiRouter.delete('/mcp/clients/:clientId', async (req, res) => {
+  try {
+    const user = (req as any).user
+    if (!user?.userId) {
+      res.status(401).json({ error: 'Not authenticated' })
+      return
+    }
+
+    const db = await getDb()
+    execute(db, `UPDATE oauth_tokens SET revoked_at = datetime('now') WHERE client_id = ? AND user_id = ? AND revoked_at IS NULL`,
+      [req.params.clientId, user.userId])
+    saveDb()
+
+    res.json({ data: { success: true } })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+function extractDomain(uris: string): string {
+  try { return new URL(JSON.parse(uris)[0]).hostname } catch { return 'Unknown' }
+}
+
+function extractFirstUri(uris: string): string {
+  try { return JSON.parse(uris)[0] } catch { return uris }
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }

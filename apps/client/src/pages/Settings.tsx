@@ -10,6 +10,7 @@ export default function Settings() {
   const [userInfo, setUserInfo] = useState<{ id: string; email: string } | null>(null)
   const [mcpCreds, setMcpCreds] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [mcpClients, setMcpClients] = useState<any[]>([])
 
   const generateCreds = async (assistant: 'claude' | 'chatgpt') => {
     setLoading(true)
@@ -23,6 +24,7 @@ export default function Settings() {
   useEffect(() => {
     api.getMe().then(setUserInfo).catch(() => {})
     api.listApiKeys().then(setApiKeys).catch(() => {})
+    api.listMcpClients().then(setMcpClients).catch(() => {})
   }, [])
 
   const createKey = async () => {
@@ -148,6 +150,36 @@ export default function Settings() {
           </div>
         )}
       </section>
+
+      {mcpClients.length > 0 && (
+        <section className="border border-border-default rounded-[4px] p-4 bg-bg-surface space-y-3">
+          <h2 className="text-sm font-mono text-text-muted uppercase tracking-wider">Connected Assistants</h2>
+          <div className="space-y-2">
+            {mcpClients.map(c => (
+              <div key={c.client_id} className="flex items-center gap-3 px-3 py-2 border border-border-default rounded-[2px] bg-bg-surface">
+                <Bot size={14} className="text-text-muted shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-text-primary font-medium">{c.client_name}</p>
+                  <p className="text-xs font-mono text-text-muted truncate">{c.redirect_uri}</p>
+                </div>
+                <span className={`text-xs font-mono ${c.active ? 'text-state-success' : 'text-text-muted'}`}>
+                  {c.active ? 'Active' : 'Inactive'}
+                </span>
+                <button
+                  onClick={async () => {
+                    await api.revokeMcpClient(c.client_id)
+                    setMcpClients(prev => prev.filter(x => x.client_id !== c.client_id))
+                  }}
+                  className="p-1 border-none bg-transparent cursor-pointer text-text-muted hover:text-state-error"
+                  title="Revoke access"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="border border-border-default rounded-[4px] p-4 bg-bg-surface space-y-4">
         <h2 className="text-sm font-mono text-text-muted uppercase tracking-wider">AI Assistant Access</h2>
