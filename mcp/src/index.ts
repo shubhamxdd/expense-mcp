@@ -1,12 +1,17 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import 'dotenv/config'
+
+import dotenv from 'dotenv'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
 
 import { validateApiKey } from './auth.js'
 
-// const API_KEY = process.env.EXPENSE_API_KEY
-const API_KEY = 'exp_test_460a61bfbd317f260bd64c6c37d4998b';
+const __dirname = dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: resolve(__dirname, '../../server/.env') })
+
+const API_KEY = process.env.EXPENSE_API_KEY
 if (!API_KEY) {
   console.error('EXPENSE_API_KEY environment variable is required')
   process.exit(1)
