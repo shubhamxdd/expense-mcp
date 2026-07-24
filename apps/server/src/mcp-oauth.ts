@@ -381,6 +381,59 @@ export async function verifyMcpToken(token: string): Promise<{ token: string; cl
   }
 }
 
+const ASSISTANTS: Record<string, { name: string; redirectUri: string }> = {
+  claude: { name: 'Claude.ai', redirectUri: 'https://claude.ai/api/mcp/auth_callback' },
+  chatgpt: { name: 'ChatGPT', redirectUri: 'https://chatgpt.com/api/mcp/auth_callback' },
+}
+
+export const mcpApiRouter = Router()
+
+mcpApiRouter.post('/mcp/register', async (req, res) => {
+  try {
+    const user = (req as any).user
+    if (!user?.userId) {
+      res.status(401).json({ error: 'Not authenticated' })
+      return
+    }
+
+    const { assistant } = req.body
+    const config = assistant ? ASSISTANTS[assistant as string] : null
+    if (assistant && !config) {
+      res.status(400).json({ error: `Unknown assistant. Supported: ${Object.keys(ASSISTANTS).join(', ')}` })
+      return
+    }
+
+    const redirectUris = config ? [config.redirectUri] : (req.body.redirect_uris || ['http://localhost:3000/callback'])
+    const clientName = config ? config.name : (req.body.client_name || 'Custom')
+
+    const db = await getDb()
+    const clientId = randomUUID()
+    const clientSecret = randomBytes(32).toString('hex')
+    const now = Math.floor(Date.now() / 1000)
+    const secretExpiry = now + 30 * 24 * 60 * 60
+
+    execute(db, `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, client_id_issued_at, client_secret_expires_at)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [clientId, clientSecret, JSON.stringify(redirectUris), clientName, now, secretExpiry])
+    saveDb()
+
+    res.status(201).json({
+      data: {
+        client_id: clientId,
+        client_secret: clientSecret,
+        client_name: clientName,
+        redirect_uri: redirectUris[0],
+        authorization_url: `${BASE_URL}/authorize`,
+        token_url: `${BASE_URL}/token`,
+        mcp_url: `${BASE_URL}/mcp`,
+        scopes: 'expenses:read expenses:write',
+      },
+    })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }

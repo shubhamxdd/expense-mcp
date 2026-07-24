@@ -54,7 +54,7 @@ ok "PKCE ready"
 info "Generating JWT…"
 JWT=$(cd "$DIR" && bun -e "
 const jwt=require('jsonwebtoken');
-const s=process.env.JWT_SECRET||'dev-secret-change-in-production';console.log(jwt.sign({userId:'test-user-001',email:'test@example.com'},s,{expiresIn:'7d'}));
+const s=process.env.JWT_SECRET||'dev-secret-change-in-production';console.log(jwt.sign({userId:'test-user-001',email:'test@example.com'},s||'dev-secret-change-in-production',{expiresIn:'7d'}));
 ")
 ok "JWT: ${JWT:0:40}…"
 

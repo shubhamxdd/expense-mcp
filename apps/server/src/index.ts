@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { getDb, saveDb, closeDb, createTables } from '@expense/expense-service'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/user.js'
@@ -8,17 +10,17 @@ import expenseRoutes from './routes/expenses.js'
 import tagRoutes from './routes/tags.js'
 import summaryRoutes from './routes/summary.js'
 import apikeyRoutes from './routes/apikeys.js'
-import { oauthRouter, ensureOAuthTables } from './mcp-oauth.js'
+import { oauthRouter, mcpApiRouter, ensureOAuthTables } from './mcp-oauth.js'
+import { authMiddleware } from './middleware/auth.js'
 import { mcpAuthMiddleware, handleMcpRequest } from './mcp-handler.js'
 import 'dotenv/config'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const CLIENT_DIST = join(__dirname, '..', '..', 'client', 'dist')
 
 const app = express()
 const PORT = parseInt(process.env.PORT || '3001', 10)
 
-// app.use(cors({
-//   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-//   credentials: true,
-// }))
 app.use(cors())
 
 app.use(cookieParser())
@@ -35,12 +37,20 @@ app.use('/api/tags', tagRoutes)
 app.use('/api/summary', summaryRoutes)
 app.use('/api/apikeys', apikeyRoutes)
 
+app.use('/api', authMiddleware, mcpApiRouter)
+
 app.use(oauthRouter)
 
 app.all('/mcp', mcpAuthMiddleware, handleMcpRequest)
 
-app.use((_req, res) => {
-  res.status(404).json({ error: { message: 'Not found', code: 'NOT_FOUND' } })
+app.use(express.static(CLIENT_DIST))
+
+app.use((req, res) => {
+  if (req.accepts('html') && !req.path.startsWith('/api/') && !req.path.startsWith('/auth/') && !req.path.startsWith('/.')) {
+    res.status(200).sendFile(join(CLIENT_DIST, 'index.html'))
+  } else {
+    res.status(404).json({ error: { message: 'Not found', code: 'NOT_FOUND' } })
+  }
 })
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

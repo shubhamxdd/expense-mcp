@@ -99,20 +99,21 @@ const token = jwt.sign({ userId: 'test-user-001', email: 'test@example.com' }, J
     }),
   })
   const sid = initResp.headers.get('mcp-session-id')
-  if (!sid) {
-    const body = await initResp.text()
-    console.error('[✗] No session ID:', body)
+  const body = await initResp.json()
+  if (body.result?.serverInfo?.name !== 'Expense Tracker') {
+    console.error('[✗] Initialize failed:', JSON.stringify(body))
     process.exit(1)
   }
-  console.log('[✓] Session ID:', sid)
+  console.log('[✓] Initialized:', body.result.serverInfo.name, body.result.protocolVersion)
+  if (sid) console.log('[✓] Session ID:', sid)
+  else console.log('[*] Stateless mode — no session ID')
 
   const mcpHeaders = {
     Authorization: `Bearer ${tok.access_token}`,
     'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',
-    'mcp-session-id': sid,
-    'mcp-protocol-version': '2025-03-26',
   }
+  if (sid) { mcpHeaders['mcp-session-id'] = sid; mcpHeaders['mcp-protocol-version'] = '2025-03-26' }
 
   // 7. tools/list
   console.log('[*] tools/list…')

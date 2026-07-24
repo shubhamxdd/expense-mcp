@@ -135,22 +135,23 @@ export const mcpAuthMiddleware = requireBearerAuth({
   resourceMetadataUrl: metadataUrl,
 })
 
-const transport = new StreamableHTTPServerTransport({
-  sessionIdGenerator: () => globalThis.crypto.randomUUID(),
-  enableJsonResponse: true,
-})
-
-await mcpServer.connect(transport)
-
 export async function handleMcpRequest(req: Request, res: Response) {
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  })
   try {
     if (!(req as any).auth?.extra?.userId) {
       res.status(401).json({ error: 'User ID not found in token' })
       return
     }
+    await mcpServer.connect(transport)
     await transport.handleRequest(req, res, req.body)
+    await mcpServer.close()
   } catch (err: any) {
     console.error('MCP handler error:', err)
-    res.status(500).json({ error: 'server_error', error_description: err.message })
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'server_error', error_description: err.message })
+    }
   }
 }

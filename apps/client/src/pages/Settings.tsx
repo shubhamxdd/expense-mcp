@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Key, Plus, Trash2, Copy, Check, User } from 'lucide-react'
+import { Key, Plus, Trash2, Copy, Check, User, Bot } from 'lucide-react'
 import { api } from '../services/api'
 
 export default function Settings() {
@@ -8,6 +8,17 @@ export default function Settings() {
   const [justCreated, setJustCreated] = useState<string | null>(null)
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null)
   const [userInfo, setUserInfo] = useState<{ id: string; email: string } | null>(null)
+  const [mcpCreds, setMcpCreds] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+
+  const generateCreds = async (assistant: 'claude' | 'chatgpt') => {
+    setLoading(true)
+    try {
+      const creds = await api.registerMcpClient(assistant)
+      setMcpCreds(creds)
+    } catch { /* toast would go here */ }
+    setLoading(false)
+  }
 
   useEffect(() => {
     api.getMe().then(setUserInfo).catch(() => {})
@@ -137,6 +148,64 @@ export default function Settings() {
           </div>
         )}
       </section>
+
+      <section className="border border-border-default rounded-[4px] p-4 bg-bg-surface space-y-4">
+        <h2 className="text-sm font-mono text-text-muted uppercase tracking-wider">AI Assistant Access</h2>
+        <p className="text-sm text-text-muted">Generate credentials to connect Claude.ai or ChatGPT to your expenses via MCP.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => generateCreds('claude')}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-ink text-white text-sm rounded-[2px] border-none cursor-pointer hover:opacity-90 disabled:opacity-50"
+          >
+            <Bot size={14} /> {loading ? 'Generating...' : 'Claude.ai'}
+          </button>
+          <button
+            onClick={() => generateCreds('chatgpt')}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-ink text-white text-sm rounded-[2px] border-none cursor-pointer hover:opacity-90 disabled:opacity-50"
+          >
+            <Bot size={14} /> {loading ? 'Generating...' : 'ChatGPT'}
+          </button>
+        </div>
+      </section>
+
+      {mcpCreds && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMcpCreds(null)}>
+          <div className="bg-bg-surface border border-border-default rounded-[4px] p-6 max-w-lg w-full mx-4 space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-heading text-text-primary">MCP Credentials — {mcpCreds.client_name}</h3>
+            <p className="text-xs text-state-success font-mono uppercase tracking-wider">Copy these into your assistant's MCP settings</p>
+            <div className="space-y-3">
+              {([
+                ['Authorization URL', mcpCreds.authorization_url],
+                ['Token URL', mcpCreds.token_url],
+                ['MCP Server URL', mcpCreds.mcp_url],
+                ['Client ID', mcpCreds.client_id],
+                ['Client Secret', mcpCreds.client_secret],
+              ] as const).map(([label, value]) => (
+                <div key={label}>
+                  <label className="text-xs text-text-muted block mb-0.5">{label}</label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-2 py-1.5 text-xs bg-bg-hover rounded-[2px] font-mono break-all border border-border-default">{value}</code>
+                    <button
+                      onClick={() => copyToClipboard(value, `mcp-${label}`)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-border-default rounded-[2px] bg-transparent cursor-pointer hover:bg-bg-hover text-text-muted whitespace-nowrap"
+                    >
+                      {copiedIndex === `mcp-${label}` ? <><Check size={12} className="text-state-success" /> Copied</> : <><Copy size={12} /> Copy</>}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setMcpCreds(null)}
+              className="w-full py-2 mt-2 text-sm border border-border-default rounded-[2px] bg-transparent cursor-pointer hover:bg-bg-hover text-text-primary"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
