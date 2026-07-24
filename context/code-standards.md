@@ -42,7 +42,7 @@
 - Shared data-access layer lives in `shared/expenseService.ts` — both REST API and MCP server import from here. Never duplicate expense CRUD logic.
 - Sheets API calls are wrapped with a short-lived in-memory cache (30s TTL) per user to stay within quota.
 - Soft-delete: set `deleted_at` to current ISO timestamp. Reads filter out non-empty `deleted_at`. Never physically delete sheet rows.
-- Encrypt Google refresh tokens at rest in SQLite using a server-side encryption key from environment variables.
+- **(Planned)** Encrypt Google refresh tokens at rest in SQLite using a server-side encryption key from environment variables.
 
 ## File Organization
 

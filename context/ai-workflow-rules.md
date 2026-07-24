@@ -8,7 +8,7 @@ Build this project incrementally using a spec-driven workflow. The context files
 
 1. **Frontend UI with mock data** (Phase 1) — Scaffold Vite+React, build Dashboard (add expense form, expense list, filters), Summary page (Recharts), Settings page (API key UI), Login page. All data from local mock/service stubs. No backend dependency yet.
 2. **Backend skeleton + SQLite** — Express server, SQLite schema and migrations, health endpoint.
-3. **Google OAuth flow** — OAuth consent redirect, code exchange, token storage (encrypted), session/JWT issuance.
+3. **Google OAuth flow** — OAuth consent redirect, code exchange, token storage, session/JWT issuance.
 4. **Google Sheets integration** — Create sheet on signup, expense CRUD against Sheets API via `shared/expenseService`.
 5. **Wire frontend to real backend** — Replace mock data, connect all pages to live REST endpoints.
 6. **API key management** — Settings page key generation + backend endpoints.

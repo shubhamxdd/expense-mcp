@@ -2,34 +2,30 @@
 
 ## Current Phase
 
-Phase 2 — Backend API with SQLite, OAuth, and Sheets integration (complete)
+Phase 3 — MCP Server (complete)
 
 ## Current Goal
 
-Backend wired to frontend, working end-to-end.
+MCP server running end-to-end: authenticates via API key from the shared SQLite DB, exposes 4 tools that operate on the user's Google Sheet via the same expenseService.
 
 ## Completed
 
-- **Express skeleton** with CORS, cookie-parser, JSON body parsing, error handling
-- **SQLite database** using `sql.js` (pure JS, no native deps), with auto-save on mutation
-- **Tables created**: `users`, `google_tokens`, `sheets`, `api_keys`, `tags`
-- **Google OAuth flow**: `/auth/google` redirect → `/auth/google/callback` exchanges code → stores tokens → creates sheet on first login → issues JWT
-- **REST endpoints**:
-  - `GET /health` — health check
-  - `GET /auth/google`, `GET /auth/google/callback` — OAuth
-  - `GET /api/me` — current user
-  - `GET/POST /api/expenses`, `PUT/DELETE /api/expenses/:id` — expense CRUD
-  - `GET /api/tags` — distinct tags for autocomplete
-  - `GET /api/summary?by=tag|month` — aggregated totals
-  - `GET/POST /api/apikeys`, `DELETE /api/apikeys/:id` — API key management
-- **expenseService** in `server/src/services/`: Google Sheets CRUD with 30s in-memory cache, soft-delete via `deleted_at` column, tag syncing to SQLite
-- **JWT auth middleware** with Bearer token parsing
-- **Zod validation middleware** for request body/query validation
-- **Frontend API client** (`client/src/services/api.ts`) — replaces mock data, talks to real backend
-- **Auth flow in frontend**: `App.tsx` reads token from URL params on OAuth callback, stores in localStorage
-- **All pages updated** to call real backend: Dashboard, Summary, Settings, Login
-- **Login page** redirects to backend's `/auth/google`
-- **Environment config**: `.env.example` files for both client and server
+- **Phase 1** — Frontend UI with mock data (Vite + React + Tailwind + Recharts)
+- **Phase 2** — Backend API (Express + SQLite + Google OAuth + Sheets CRUD + frontend wiring)
+- **Phase 3** — MCP Server (this phase)
+
+**MCP Server specifics:**
+- `mcp/` directory scaffolded with `@modelcontextprotocol/sdk` v1.29.0
+- Self-contained auth module: opens the shared SQLite DB file, validates API key via SHA-256 hash against `api_keys` table
+- 4 tools exposed:
+  - `add_expense(amount, tags[], note?, date?)` — creates expense in user's Google Sheet
+  - `list_expenses(from?, to?, tags?)` — lists expenses with optional filters
+  - `get_summary(by: "tag"|"month", from?, to?)` — aggregated totals with percentages
+  - `delete_expense(id)` — soft-deletes expense
+- All tools dynamically import `server/src/services/expenseService.ts` at runtime (reuses same data-access layer)
+- API key passed via `EXPENSE_API_KEY` environment variable
+- StdioServerTransport for local MCP client integration (Claude Desktop, etc.)
+- Verified end-to-end: authenticates test key, starts and listens on stdio
 
 ## In Progress
 
@@ -37,19 +33,21 @@ Backend wired to frontend, working end-to-end.
 
 ## Next Up
 
-Phase 3 — MCP Server (Node + @modelcontextprotocol/sdk)
+- **(Later)** OAuth 2.1 for MCP (dynamic client registration, per-client tokens)
+- **(Later)** CSV/PDF import
+- **(Later)** Token encryption at rest in SQLite
 
 ## Open Questions
 
-- **CORS**: Backend is configured for `http://localhost:5173` (Vite dev). For production, need to update `FRONTEND_URL`.
-- **Token encryption**: Refresh tokens are stored as-is in SQLite. Should add encryption using `JWT_SECRET` or a separate `ENCRYPTION_KEY`.
+- **Deployment**: MCP server uses relative path imports to `server/src/services/expenseService.ts`. For standalone deployment (Render/Railway), need to either bundle both as a monorepo or extract expenseService into a shared package.
+- **MCP over HTTP**: Currently only stdio transport. For remote access, need SSE or HTTP transport with the API key passed as Bearer token.
 
 ## Architecture Decisions
 
 (Previous decisions remain unchanged.)
 
-**New decision — expense service location**: The expense service lives in `server/src/services/expenseService.ts` (not `shared/`). The MCP server will import from this same path. The `shared/` directory now holds only shared type definitions (`shared/types.ts`).
+**New decision — MCP imports from server source**: The MCP server dynamically imports expenseService from `server/src/services/` at runtime using tsx. This avoids duplicating the Sheets CRUD logic and keeps the architecture consistent with PLAN.md §5 ("Reuses the backend's data-access layer").
 
 ## Session Notes
 
-- Phase 2 complete: Express server with SQLite, Google OAuth, Sheets CRUD, and frontend wiring. Both `npm run build` pass in client and server.
+- All 3 phases implemented. Project is fully functional end-to-end: React frontend → Express API → Google Sheets ↔ MCP server. Both `npm run build` pass (client and server). MCP server verified at runtime with tsx.
