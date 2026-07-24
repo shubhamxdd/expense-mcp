@@ -1,16 +1,17 @@
+import 'dotenv/config';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 
-import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
-import { dirname, resolve } from 'path'
+// import dotenv from 'dotenv'
+// import { fileURLToPath } from 'url'
+// import { dirname, resolve } from 'path'
 
 import { validateApiKey } from './auth.js'
 import { addExpense, listExpenses, getSummary, deleteExpense } from '@expense/expense-service'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-dotenv.config({ path: resolve(__dirname, '../../server/.env') })
+// const __dirname = dirname(fileURLToPath(import.meta.url))
+// dotenv.config({ path: resolve(__dirname, '../../server/.env') })
 
 const API_KEY = process.env.EXPENSE_API_KEY
 if (!API_KEY) {
