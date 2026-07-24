@@ -167,18 +167,31 @@ oauthRouter.all('/authorize', (req, res, next) => {
   }
 
   const db = await getDb()
-  const client = queryOne(db, 'SELECT * FROM oauth_clients WHERE client_id = ?', [client_id])
+  let client = queryOne(db, 'SELECT * FROM oauth_clients WHERE client_id = ?', [client_id])
   if (!client) {
-    res.status(400).json({ error: 'invalid_client', error_description: 'Unknown client_id' })
+    execute(db, `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, client_id_issued_at)
+      VALUES (?, ?, ?, ?, ?)`,
+      [client_id, null, JSON.stringify([redirect_uri]), null, Math.floor(Date.now() / 1000)])
+    saveDb()
+    client = queryOne(db, 'SELECT * FROM oauth_clients WHERE client_id = ?', [client_id])
+  }
+  if (!client) {
+    res.status(500).json({ error: 'server_error', error_description: 'Failed to create or find client' })
     return
   }
 
   let registeredUris: string[]
   try { registeredUris = JSON.parse(client.redirect_uris as string) } catch { registeredUris = [] }
   const finalRedirect = redirect_uri || (registeredUris.length === 1 ? registeredUris[0] : null)
-  if (!finalRedirect || !registeredUris.includes(finalRedirect)) {
-    res.status(400).json({ error: 'invalid_request', error_description: 'Unregistered redirect_uri' })
+  if (!finalRedirect) {
+    res.status(400).json({ error: 'invalid_request', error_description: 'No redirect_uri provided and client has none registered' })
     return
+  }
+  if (!registeredUris.includes(finalRedirect)) {
+    registeredUris.push(finalRedirect)
+    execute(db, 'UPDATE oauth_clients SET redirect_uris = ? WHERE client_id = ?',
+      [JSON.stringify(registeredUris), client_id])
+    saveDb()
   }
 
   if (req.method === 'POST' && req.body.token) {
