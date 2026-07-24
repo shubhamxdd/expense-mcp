@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "exp": {
+      "type": "stdio",
+      "command": "tsx",
+      "args": ["src/index.ts"],
+      "cwd": "${workspaceFolder}/mcp",
+      "env": {
+        "EXPENSE_API_KEY": "exp_5e61821f91075a534ae961e1e6b2719b81cebc6406ded2c7"
+      }
+    }
+  }
+}
