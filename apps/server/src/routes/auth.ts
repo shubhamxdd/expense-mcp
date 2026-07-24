@@ -6,8 +6,8 @@ import { generateToken } from '../middleware/auth.js'
 
 const router = Router()
 
-router.get('/google', (_req, res) => {
-  res.redirect(getAuthUrl())
+router.get('/google', (req, res) => {
+  res.redirect(getAuthUrl(req.query.state as string || undefined))
 })
 
 router.get('/google/callback', async (req, res) => {
@@ -59,7 +59,34 @@ router.get('/google/callback', async (req, res) => {
     saveDb()
 
     const jwt = generateToken({ userId, email })
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}?token=${jwt}`)
+
+    // Set JWT cookie for auto-auth on future MCP authorize visits
+    res.cookie('mcp_token', jwt, { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 })
+
+    // Check if this callback originated from the MCP authorize page
+    const stateParam = req.query.state as string | undefined
+    let mcpState: Record<string, string> | null = null
+    if (stateParam) {
+      try {
+        mcpState = JSON.parse(Buffer.from(stateParam, 'base64url').toString())
+      } catch { /* not an MCP state */ }
+    }
+
+    if (mcpState && mcpState.mcp_authorize === '1') {
+      // Complete the MCP OAuth authorize flow
+      const authCode = crypto.randomUUID().replace(/-/g, '')
+      execute(db, `INSERT INTO oauth_auth_codes (code, client_id, user_id, scope, code_challenge, code_challenge_method, redirect_uri, resource, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+10 minutes'))`,
+        [authCode, mcpState.client_id, userId, mcpState.scope || '', mcpState.code_challenge, 'S256', mcpState.redirect_uri, null])
+      saveDb()
+
+      const url = new URL(mcpState.redirect_uri)
+      url.searchParams.set('code', authCode)
+      url.searchParams.set('state', mcpState.oauth_state || '')
+      res.redirect(302, url.toString())
+    } else {
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}?token=${jwt}`)
+    }
   } catch (err) {
     console.error('OAuth callback error:', err)
     res.status(500).json({ error: { message: 'Authentication failed', code: 'AUTH_ERROR' } })

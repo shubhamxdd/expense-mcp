@@ -12,11 +12,12 @@ export function getOAuth2Client() {
   return new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
 }
 
-export function getAuthUrl(): string {
+export function getAuthUrl(state?: string): string {
   const oauth2 = getOAuth2Client()
   return oauth2.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
+    state,
     scope: [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',

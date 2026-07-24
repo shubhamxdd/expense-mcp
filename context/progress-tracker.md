@@ -2,52 +2,60 @@
 
 ## Current Phase
 
-Phase 3 — MCP Server (complete)
+Phase 4 — MCP OAuth 2.1 / Streamable HTTP (complete)
 
 ## Current Goal
 
-MCP server running end-to-end: authenticates via API key from the shared SQLite DB, exposes 4 tools that operate on the user's Google Sheet via the same expenseService.
+Remote MCP connection support via OAuth 2.1 + Streamable HTTP transport for cloud AI chatbots (Claude.ai, ChatGPT).
 
 ## Completed
 
 - **Phase 1** — Frontend UI with mock data (Vite + React + Tailwind + Recharts)
 - **Phase 2** — Backend API (Express + SQLite + Google OAuth + Sheets CRUD + frontend wiring)
-- **Phase 3** — MCP Server (this phase)
+- **Phase 3** — MCP Stdio Server (local MCP client integration)
+- **Phase 4** — MCP OAuth 2.1 + Streamable HTTP (cloud chatbot support)
 
-**MCP Server specifics:**
-- `mcp/` directory scaffolded with `@modelcontextprotocol/sdk` v1.29.0
-- Self-contained auth module: opens the shared SQLite DB file, validates API key via SHA-256 hash against `api_keys` table
-- 4 tools exposed:
-  - `add_expense(amount, tags[], note?, date?)` — creates expense in user's Google Sheet
-  - `list_expenses(from?, to?, tags?)` — lists expenses with optional filters
-  - `get_summary(by: "tag"|"month", from?, to?)` — aggregated totals with percentages
-  - `delete_expense(id)` — soft-deletes expense
-- All tools dynamically import `server/src/services/expenseService.ts` at runtime (reuses same data-access layer)
-- API key passed via `EXPENSE_API_KEY` environment variable
-- StdioServerTransport for local MCP client integration (Claude Desktop, etc.)
-- Verified end-to-end: authenticates test key, starts and listens on stdio
+**Phase 4 specifics:**
+- Full OAuth 2.1 authorization server embedded in Express (`apps/server/src/mcp-oauth.ts`):
+  - `GET /.well-known/oauth-authorization-server` — AS metadata
+  - `GET /.well-known/oauth-protected-resource{/mcp}` — resource metadata
+  - `POST /register` — Dynamic Client Registration (DCR)
+  - `GET/POST /authorize` — HTML consent page + JWT-based user verification
+  - `POST /token` — Authorization code + refresh token grants (PKCE S256)
+  - `POST /revoke` — Token revocation
+- OAuth tokens stored in SQLite with SHA-256 hashing (opaque tokens)
+- Access tokens: 1 hour expiry, Refresh tokens: 30 days
+- MCP endpoint at `POST /mcp` with required Bearer auth via SDK's `requireBearerAuth` middleware
+- Streamable HTTP transport (`StreamableHTTPServerTransport`) with JSON response mode (`enableJsonResponse: true`)
+- 4 tools exposed on remote MCP endpoint:
+  - `add_expense(amount, tags[], note?, date?)`
+  - `list_expenses(from?, to?, tags?)`
+  - `get_summary(by: "tag"|"month", from?, to?)`
+  - `delete_expense(id)`
+- Single transport instance connected once to `McpServer` (Protocol limitation)
+- `mcpUserStorage` AsyncLocalStorage provides user context to tool handlers
+- Verified end-to-end: register → authorize → token exchange → initialize → tools/list → tools/call → tools/call
 
-## In Progress
+## Key Fixes
 
-- None
+- **Timezone bug**: SQLite `datetime('now')` returns UTC, but `new Date(str)` parses as local time. Appended `'Z'` when converting for correct UTC interpretation.
+- **Protocol.connect single-use**: `McpServer.connect(transport)` throws if called more than once. Fixed by using one transport instance connected at module level.
+- **PKCE**: Proper code_verifier/challenge pair generation using `crypto.randomBytes(32)` and SHA-256 base64url.
 
 ## Next Up
 
-- **(Later)** OAuth 2.1 for MCP (dynamic client registration, per-client tokens)
 - **(Later)** CSV/PDF import
 - **(Later)** Token encryption at rest in SQLite
-
-## Open Questions
-
-- **Deployment**: MCP server uses relative path imports to `server/src/services/expenseService.ts`. For standalone deployment (Render/Railway), need to either bundle both as a monorepo or extract expenseService into a shared package.
-- **MCP over HTTP**: Currently only stdio transport. For remote access, need SSE or HTTP transport with the API key passed as Bearer token.
+- **(Future)** Expose via ngrok/tunnel for actual Claude.ai/ChatGPT integration — requires `client_id` + `client_secret` from `/register` configured in chatbot's OAuth settings
 
 ## Architecture Decisions
 
-(Previous decisions remain unchanged.)
-
-**New decision — MCP imports from server source**: The MCP server dynamically imports expenseService from `server/src/services/` at runtime using tsx. This avoids duplicating the Sheets CRUD logic and keeps the architecture consistent with PLAN.md §5 ("Reuses the backend's data-access layer").
+- OAuth server shares the existing Express app + SQLite database (no separate process)
+- User identity verified via existing JWT token passed into authorize form (no separate password)
+- `enableJsonResponse: true` on transport simplifies testing; Claude.ai/ChatGPT SDKs also support JSON mode
+- `verifyMcpToken` returns `extra: { userId }` so `requireBearerAuth` attaches user context to `req.auth`
+- Exposed scopes: `expenses:read`, `expenses:write`
 
 ## Session Notes
 
-- All 3 phases implemented. Project is fully functional end-to-end: React frontend → Express API → Google Sheets ↔ MCP server. Both `npm run build` pass (client and server). MCP server verified at runtime with tsx.
+- Phase 4 implemented in one session. OAuth server, MCP handler, and Express wiring complete. Build passes. All tools verified with curl end-to-end.

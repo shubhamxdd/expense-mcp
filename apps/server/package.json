@@ -17,7 +17,8 @@
     "googleapis": "^144.0.0",
     "jsonwebtoken": "^9.0.2",
     "sql.js": "^1.11.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.7",
