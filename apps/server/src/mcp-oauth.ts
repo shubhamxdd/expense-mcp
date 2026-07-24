@@ -231,29 +231,7 @@ oauthRouter.all('/authorize', (req, res, next) => {
     }
   }
 
-  if (req.method === 'GET' || !req.body.token) {
-    // Auto-auth via JWT cookie
-    const cookieToken = req.cookies?.mcp_token as string | undefined
-    if (cookieToken) {
-      try {
-        const payload = jwt.verify(cookieToken, JWT_SECRET) as any
-        const userId = payload.userId
-        const code = generateAuthCode()
-        execute(db, `INSERT INTO oauth_auth_codes (code, client_id, user_id, scope, code_challenge, code_challenge_method, redirect_uri, resource, expires_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+10 minutes'))`,
-          [code, client_id, userId, scope || '', code_challenge, code_challenge_method, finalRedirect, null])
-        saveDb()
-        const url = new URL(finalRedirect)
-        url.searchParams.set('code', code)
-        url.searchParams.set('state', state || '')
-        res.redirect(302, url.toString())
-        return
-      } catch {
-        // Cookie invalid — fall through to show form
-      }
-    }
-
-    // Build the "Login with Google" link that carries MCP authorize params
+  function buildGoogleAuthUrl() {
     const mcpState = Buffer.from(JSON.stringify({
       mcp_authorize: '1',
       client_id,
@@ -262,22 +240,75 @@ oauthRouter.all('/authorize', (req, res, next) => {
       scope: scope || '',
       oauth_state: state || '',
     })).toString('base64url')
-    const googleAuthUrl = `/auth/google?state=${encodeURIComponent(mcpState)}`
+    return `/auth/google?state=${encodeURIComponent(mcpState)}`
+  }
+
+  function completeAuthViaUserId(userId: string) {
+    const code = generateAuthCode()
+    execute(db, `INSERT INTO oauth_auth_codes (code, client_id, user_id, scope, code_challenge, code_challenge_method, redirect_uri, resource, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+10 minutes'))`,
+      [code, client_id, userId, scope || '', code_challenge, code_challenge_method, finalRedirect, null])
+    saveDb()
+    const url = new URL(finalRedirect)
+    url.searchParams.set('code', code)
+    url.searchParams.set('state', state || '')
+    res.redirect(302, url.toString())
+  }
+
+  function tryCookieAuth(): boolean {
+    const cookieToken = req.cookies?.mcp_token as string | undefined
+    if (!cookieToken) return false
+    try {
+      const payload = jwt.verify(cookieToken, JWT_SECRET) as any
+      completeAuthViaUserId(payload.userId)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // POST without token — user clicked "Login with Google" or submitted the <form>
+  if (req.method === 'POST' && !req.body.token) {
+    if (tryCookieAuth()) return
+    // No cookie — redirect to the main app so it can grab JWT from localStorage
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const redirectParams = new URLSearchParams({
+      client_id,
+      redirect_uri: finalRedirect,
+      response_type: 'code',
+      code_challenge,
+      code_challenge_method: 'S256',
+    })
+    if (scope) redirectParams.set('scope', scope)
+    if (state) redirectParams.set('state', state)
+    res.redirect(302, `${frontendUrl}/mcp-auth?${redirectParams.toString()}`)
+    return
+  }
+
+  // GET — initial page load
+  if (req.method === 'GET') {
+    if (tryCookieAuth()) return
+
+    const hiddenFields = `
+      <input type="hidden" name="client_id" value="${escapeHtml(client_id)}">
+      <input type="hidden" name="redirect_uri" value="${escapeHtml(finalRedirect)}">
+      <input type="hidden" name="response_type" value="code">
+      <input type="hidden" name="code_challenge" value="${escapeHtml(code_challenge)}">
+      <input type="hidden" name="code_challenge_method" value="S256">
+      ${state ? `<input type="hidden" name="state" value="${escapeHtml(state)}">` : ''}`
 
     res.send(htmlPage('Authorize Expense Tracker MCP',
       `<p style="margin-bottom:16px">The application <strong>${escapeHtml(client.client_name as string || client_id)}</strong> requests access to your expenses.</p>
       <div style="margin-bottom:20px">
-        <a href="${escapeHtml(googleAuthUrl)}" style="display:inline-block;padding:12px 24px;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:4px;font-size:15px;cursor:pointer">Login with Google</a>
+        <form method="POST" action="/authorize" style="display:inline">
+          ${hiddenFields}
+          <button type="submit" style="display:inline-block;padding:12px 24px;background:#1a1a1a;color:#fff;border:none;border-radius:4px;font-size:15px;cursor:pointer">Login with Google</button>
+        </form>
       </div>
       <hr style="border:none;border-top:1px solid #ddd;margin-bottom:20px">
       <p style="color:#888;font-size:14px;margin-bottom:12px">Or paste an API token:</p>
       <form method="POST" action="/authorize">
-        <input type="hidden" name="client_id" value="${escapeHtml(client_id)}">
-        <input type="hidden" name="redirect_uri" value="${escapeHtml(finalRedirect)}">
-        <input type="hidden" name="response_type" value="code">
-        <input type="hidden" name="code_challenge" value="${escapeHtml(code_challenge)}">
-        <input type="hidden" name="code_challenge_method" value="S256">
-        ${state ? `<input type="hidden" name="state" value="${escapeHtml(state)}">` : ''}
+        ${hiddenFields}
         <label>API Token:<br><input type="text" name="token" style="width:100%;padding:8px;margin:8px 0;font-family:monospace"></label>
         <p style="color:#888;font-size:14px">Paste your JWT token from the Expense Tracker app.</p>
         <div style="margin-top:16px">
