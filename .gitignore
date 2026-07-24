@@ -1,9 +1,12 @@
 node_modules/
 dist/
 build/
+.turbo/
 .env
 .env.local
 *.db
 *.sqlite
 .DS_Store
 *.log
+opencode.jsonc
+bun.lock

@@ -1,7 +1,6 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth.js'
-import { getDb } from '../db/database.js'
-import { createTables, queryAll } from '../db/schema.js'
+import { getDb, createTables, queryAll } from '@expense/expense-service'
 
 const router = Router()
 router.use(authMiddleware)

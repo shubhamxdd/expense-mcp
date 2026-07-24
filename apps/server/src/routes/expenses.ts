@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { authMiddleware } from '../middleware/auth.js'
 import { validate } from '../middleware/validate.js'
+import { listExpenses, addExpense, updateExpense, deleteExpense } from '@expense/expense-service'
 
 const router = Router()
 router.use(authMiddleware)
@@ -24,7 +25,6 @@ router.get('/', async (req, res) => {
   try {
     const { from, to, tags } = req.query
     const tagsArr = typeof tags === 'string' ? tags.split(',') : undefined
-    const { listExpenses } = await import('../services/expenseService.js')
     const expenses = await listExpenses(req.user!.userId, {
       from: from as string | undefined,
       to: to as string | undefined,
@@ -39,7 +39,6 @@ router.get('/', async (req, res) => {
 
 router.post('/', validate(createExpenseSchema), async (req, res) => {
   try {
-    const { addExpense } = await import('../services/expenseService.js')
     const expense = await addExpense(req.user!.userId, {
       date: req.body.date || new Date().toISOString().slice(0, 10),
       amount: req.body.amount,
@@ -55,7 +54,6 @@ router.post('/', validate(createExpenseSchema), async (req, res) => {
 
 router.put('/:id', validate(updateExpenseSchema), async (req, res) => {
   try {
-    const { updateExpense } = await import('../services/expenseService.js')
     const expense = await updateExpense(req.user!.userId, req.params.id as string, req.body)
     res.json({ data: expense })
   } catch (err: any) {
@@ -70,7 +68,6 @@ router.put('/:id', validate(updateExpenseSchema), async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    const { deleteExpense } = await import('../services/expenseService.js')
     await deleteExpense(req.user!.userId, req.params.id as string)
     res.json({ data: { success: true } })
   } catch (err: any) {

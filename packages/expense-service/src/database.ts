@@ -1,11 +1,12 @@
 import initSqlJs from 'sql.js'
 import type { Database as SqlJsDatabase } from 'sql.js'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { join, dirname } from 'path'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { join, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const DB_PATH = join(__dirname, '..', '..', 'data', 'expense-tracker.db')
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const DB_PATH = process.env.DB_PATH || resolve(__dirname, '../../../apps/server/data/expense-tracker.db')
 
 let db: SqlJsDatabase | null = null
 
@@ -13,9 +14,8 @@ export async function getDb(): Promise<SqlJsDatabase> {
   if (db) return db
 
   const SQL = await initSqlJs()
-  const dir = join(__dirname, '..', '..', 'data')
+  const dir = dirname(DB_PATH)
   if (!existsSync(dir)) {
-    const { mkdirSync } = await import('fs')
     mkdirSync(dir, { recursive: true })
   }
 

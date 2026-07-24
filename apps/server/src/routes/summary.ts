@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth.js'
+import { getSummary } from '@expense/expense-service'
 
 const router = Router()
 router.use(authMiddleware)
@@ -15,7 +16,6 @@ router.get('/', async (req, res) => {
       return
     }
 
-    const { getSummary } = await import('../services/expenseService.js')
     const summary = await getSummary(req.user!.userId, by as 'tag' | 'month', from, to)
     res.json({ data: summary })
   } catch (err: any) {

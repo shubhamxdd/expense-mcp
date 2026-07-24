@@ -7,9 +7,10 @@ import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 
 import { validateApiKey } from './auth.js'
+import { addExpense, listExpenses, getSummary, deleteExpense } from '@expense/expense-service'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-dotenv.config({ path: resolve(__dirname, '../../server/.env') })
+dotenv.config({ path: resolve(__dirname, '../server/.env') })
 
 const API_KEY = process.env.EXPENSE_API_KEY
 if (!API_KEY) {
@@ -36,7 +37,6 @@ server.tool(
   },
   async ({ amount, tags, note, date }) => {
     try {
-      const { addExpense } = await import('../../server/src/services/expenseService.js')
       const expense = await addExpense(userId, {
         amount,
         tags,
@@ -62,7 +62,6 @@ server.tool(
   },
   async ({ from, to, tags }) => {
     try {
-      const { listExpenses } = await import('../../server/src/services/expenseService.js')
       const expenses = await listExpenses(userId, {
         from: from || undefined,
         to: to || undefined,
@@ -95,7 +94,6 @@ server.tool(
   },
   async ({ by, from, to }) => {
     try {
-      const { getSummary } = await import('../../server/src/services/expenseService.js')
       const summary = await getSummary(userId, by, from || undefined, to || undefined)
 
       if (summary.length === 0) {
@@ -122,7 +120,6 @@ server.tool(
   },
   async ({ id }) => {
     try {
-      const { deleteExpense } = await import('../../server/src/services/expenseService.js')
       await deleteExpense(userId, id)
       return { content: [{ type: 'text', text: `✅ Deleted expense ${id}` }] }
     } catch (err: any) {

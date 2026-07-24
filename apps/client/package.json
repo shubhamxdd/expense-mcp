@@ -1,13 +1,13 @@
 {
-  "name": "client",
+  "name": "@expense/client",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "clean": "rm -rf dist .turbo node_modules/.tmp"
   },
   "dependencies": {
     "lucide-react": "^1.26.0",

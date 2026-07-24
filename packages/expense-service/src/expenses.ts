@@ -1,8 +1,7 @@
 import { google } from 'googleapis'
 import type { sheets_v4 } from 'googleapis'
-import { getDb } from '../db/database.js'
-import { createTables, queryOne, execute } from '../db/schema.js'
-import { saveDb } from '../db/database.js'
+import { getDb, saveDb } from './database.js'
+import { createTables, queryOne, execute } from './schema.js'
 
 export interface Expense {
   id: string
@@ -21,7 +20,6 @@ interface ListOptions {
 
 const USE_MOCK = process.env.USE_MOCK_DATA === 'true'
 
-// In-memory mock data for testing without Google Sheets
 let mockExpenses: Expense[] = []
 let mockInitialized = false
 

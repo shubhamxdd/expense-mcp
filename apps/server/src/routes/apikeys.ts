@@ -2,8 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { authMiddleware } from '../middleware/auth.js'
 import { validate } from '../middleware/validate.js'
-import { getDb, saveDb } from '../db/database.js'
-import { createTables, queryAll, queryOne, execute } from '../db/schema.js'
+import { getDb, saveDb, createTables, queryAll, queryOne, execute } from '@expense/expense-service'
 import crypto from 'crypto'
 
 const router = Router()

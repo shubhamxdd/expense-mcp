@@ -1,7 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { getDb, saveDb } from '../db/database.js'
-import { createTables, queryOne, execute } from '../db/schema.js'
+import { getDb, saveDb, createTables, queryOne, execute } from '@expense/expense-service'
 import { getAuthUrl, getTokensFromCode, getUserInfo, createSpreadsheet } from '../services/oauth.js'
 import { generateToken } from '../middleware/auth.js'
 
