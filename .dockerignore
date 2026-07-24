@@ -1,0 +1,10 @@
+node_modules
+.git
+.gitignore
+*.md
+context/
+apps/client/dist
+apps/server/data
+apps/server/dist
+.env
+.env.*

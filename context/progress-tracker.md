@@ -44,9 +44,9 @@ Remote MCP connection support via OAuth 2.1 + Streamable HTTP transport for clou
 
 ## Next Up
 
+- **(Now)** Dockerize for production deployment
 - **(Later)** CSV/PDF import
 - **(Later)** Token encryption at rest in SQLite
-- **(Future)** Expose via ngrok/tunnel for actual Claude.ai/ChatGPT integration — requires `client_id` + `client_secret` from `/register` configured in chatbot's OAuth settings
 
 ## Architecture Decisions
 
