@@ -5,7 +5,8 @@ import 'dotenv/config'
 
 import { validateApiKey } from './auth.js'
 
-const API_KEY = process.env.EXPENSE_API_KEY
+// const API_KEY = process.env.EXPENSE_API_KEY
+const API_KEY = 'exp_test_460a61bfbd317f260bd64c6c37d4998b';
 if (!API_KEY) {
   console.error('EXPENSE_API_KEY environment variable is required')
   process.exit(1)

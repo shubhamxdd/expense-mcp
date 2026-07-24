@@ -64,7 +64,10 @@ async function getSheetsClient(userId: string) {
   const sheetRow = queryOne(db, 'SELECT spreadsheet_id, sheet_name FROM sheets WHERE user_id = ?', [userId])
   if (!sheetRow) throw new Error('NO_SHEET')
 
-  currentSheetId = sheetRow.spreadsheet_id as string
+  const sid = sheetRow.spreadsheet_id as string | null
+  if (!sid) throw new Error('NO_SPREADSHEET_ID')
+
+  currentSheetId = sid
   currentSheetName = (sheetRow.sheet_name as string) || 'Sheet1'
 
   sheetsClient = google.sheets({ version: 'v4', auth: oauth2 })

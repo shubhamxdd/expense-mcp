@@ -31,9 +31,9 @@ router.get('/', async (req, res) => {
       tags: tagsArr,
     })
     res.json({ data: expenses })
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error listing expenses:', err)
-    res.status(500).json({ error: { message: 'Failed to list expenses', code: 'INTERNAL_ERROR' } })
+    res.status(500).json({ error: { message: err.message || 'Failed to list expenses', code: 'INTERNAL_ERROR' } })
   }
 })
 
@@ -47,9 +47,9 @@ router.post('/', validate(createExpenseSchema), async (req, res) => {
       note: req.body.note || '',
     })
     res.status(201).json({ data: expense })
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error creating expense:', err)
-    res.status(500).json({ error: { message: 'Failed to create expense', code: 'INTERNAL_ERROR' } })
+    res.status(500).json({ error: { message: err.message || 'Failed to create expense', code: 'INTERNAL_ERROR' } })
   }
 })
 
@@ -64,7 +64,7 @@ router.put('/:id', validate(updateExpenseSchema), async (req, res) => {
       return
     }
     console.error('Error updating expense:', err)
-    res.status(500).json({ error: { message: 'Failed to update expense', code: 'INTERNAL_ERROR' } })
+    res.status(500).json({ error: { message: err.message || 'Failed to update expense', code: 'INTERNAL_ERROR' } })
   }
 })
 
@@ -79,7 +79,7 @@ router.delete('/:id', async (req, res) => {
       return
     }
     console.error('Error deleting expense:', err)
-    res.status(500).json({ error: { message: 'Failed to delete expense', code: 'INTERNAL_ERROR' } })
+    res.status(500).json({ error: { message: err.message || 'Failed to delete expense', code: 'INTERNAL_ERROR' } })
   }
 })
 

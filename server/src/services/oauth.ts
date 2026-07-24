@@ -1,10 +1,14 @@
+import 'dotenv/config'
 import { google } from 'googleapis'
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/auth/google/callback'
 
 export function getOAuth2Client() {
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set in server/.env')
+  }
   return new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI)
 }
 
@@ -46,7 +50,10 @@ export async function createSpreadsheet(accessToken: string, userName: string) {
     },
   })
 
-  const spreadsheetId = data.spreadsheetId!
+  const spreadsheetId = data.spreadsheetId
+  if (!spreadsheetId) {
+    throw new Error('Failed to create spreadsheet. Check that Google Sheets API is enabled in your Cloud Console.')
+  }
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: 'Sheet1!A1:G1',

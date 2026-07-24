@@ -18,9 +18,9 @@ router.get('/', async (req, res) => {
     const { getSummary } = await import('../services/expenseService.js')
     const summary = await getSummary(req.user!.userId, by as 'tag' | 'month', from, to)
     res.json({ data: summary })
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error getting summary:', err)
-    res.status(500).json({ error: { message: 'Failed to get summary', code: 'INTERNAL_ERROR' } })
+    res.status(500).json({ error: { message: err.message || 'Failed to get summary', code: 'INTERNAL_ERROR' } })
   }
 })
 
