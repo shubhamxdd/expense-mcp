@@ -1,12 +1,13 @@
-import { Trash2 } from 'lucide-react'
+import { Trash2, PencilLine } from 'lucide-react'
 import type { Expense } from '../types/expense'
 
 interface ExpenseListProps {
   expenses: Expense[]
+  onEdit: (expense: Expense) => void
   onDelete: (id: string) => void
 }
 
-export default function ExpenseList({ expenses, onDelete }: ExpenseListProps) {
+export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
   if (!expenses.length) {
     return <p className="text-text-muted text-sm text-center py-8">No expenses yet.</p>
   }
@@ -37,13 +38,22 @@ export default function ExpenseList({ expenses, onDelete }: ExpenseListProps) {
           <span className="text-sm text-text-muted flex-1 truncate hidden sm:block">
             {expense.note}
           </span>
-          <button
-            onClick={() => onDelete(expense.id)}
-            className="opacity-0 group-hover:opacity-100 p-1 border-none bg-transparent cursor-pointer text-text-muted hover:text-state-error transition-all"
-            title="Delete expense"
-          >
-            <Trash2 size={14} />
-          </button>
+          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+            <button
+              onClick={() => onEdit(expense)}
+              className="p-1 border-none bg-transparent cursor-pointer text-text-muted hover:text-text-primary"
+              title="Edit expense"
+            >
+              <PencilLine size={14} />
+            </button>
+            <button
+              onClick={() => onDelete(expense.id)}
+              className="p-1 border-none bg-transparent cursor-pointer text-text-muted hover:text-state-error"
+              title="Delete expense"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
       ))}
     </div>

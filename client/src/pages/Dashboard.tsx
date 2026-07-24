@@ -3,6 +3,7 @@ import ExpenseForm from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
 import ExpenseFilters from '../components/ExpenseFilters'
 import CurrentMonthTotal from '../components/CurrentMonthTotal'
+import ExpenseEditModal from '../components/ExpenseEditModal'
 import { api } from '../services/api'
 import type { Expense } from '../types/expense'
 
@@ -10,6 +11,7 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
 
   const loadExpenses = useCallback(async (filters?: { from?: string; to?: string; tags?: string }) => {
     setLoading(true)
@@ -46,6 +48,11 @@ export default function Dashboard() {
     setExpenses(prev => [expense, ...prev])
   }
 
+  const handleExpenseUpdated = (updated: Expense) => {
+    setExpenses(prev => prev.map(e => e.id === updated.id ? updated : e))
+    setEditingExpense(null)
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       <h1 className="text-2xl font-heading text-text-primary">Dashboard</h1>
@@ -65,9 +72,16 @@ export default function Dashboard() {
         {loading ? (
           <p className="text-text-muted text-sm text-center py-8">Loading...</p>
         ) : (
-          <ExpenseList expenses={expenses} onDelete={handleDelete} />
+          <ExpenseList expenses={expenses} onEdit={setEditingExpense} onDelete={handleDelete} />
         )}
       </div>
+      {editingExpense && (
+        <ExpenseEditModal
+          expense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onUpdated={handleExpenseUpdated}
+        />
+      )}
     </div>
   )
 }
