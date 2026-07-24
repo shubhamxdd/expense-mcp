@@ -85,7 +85,7 @@ const TagInput = forwardRef<TagInputHandle, TagInputProps>(
             className="flex-1 min-w-[80px] border-none bg-transparent outline-none text-sm text-text-primary placeholder:text-text-muted"
           />
         </div>
-        {showSuggestions && input && filtered.length > 0 && (
+        {showSuggestions && input && (
           <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-bg-surface border border-border-default rounded-[2px] shadow-sm">
             {filtered.map(s => (
               <button
@@ -101,6 +101,19 @@ const TagInput = forwardRef<TagInputHandle, TagInputProps>(
                 {s}
               </button>
             ))}
+            {!tags.includes(input.trim().toLowerCase()) && (
+              <button
+                type="button"
+                onMouseDown={e => {
+                  e.preventDefault()
+                  clearTimeout(blurTimer.current ?? undefined)
+                  addTag(input)
+                }}
+                className="block w-full text-left px-3 py-1.5 text-sm text-text-primary border-t border-border-default hover:bg-bg-hover border-l-0 border-r-0 border-b-0 bg-transparent cursor-pointer"
+              >
+                + Create &ldquo;{input.trim().toLowerCase()}&rdquo;
+              </button>
+            )}
           </div>
         )}
       </div>
