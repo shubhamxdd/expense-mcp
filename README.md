@@ -1,6 +1,6 @@
 # Expense Tracker
 
-Multi-user expense tracker with a React web app, Google Sheets storage, and an MCP server for AI client integration.
+Multi-user expense tracker with a React web app, Google Sheets storage, and a remote MCP server for AI assistant integration (Claude.ai, ChatGPT).
 
 Each user's expenses live in their own private Google Sheet (auto-created on first login). SQLite stores only account plumbing — users, OAuth tokens, API keys, and tag autocomplete data.
 
@@ -12,8 +12,7 @@ Each user's expenses live in their own private Google Sheet (auto-created on fir
 expense-mcp/
 ├── apps/
 │   ├── client/          # React SPA (Vite + Tailwind + Recharts)
-│   ├── server/          # Express REST API + Google OAuth
-│   └── mcp/             # MCP server (stdio transport)
+│   └── server/          # Express REST API + MCP OAuth server
 ├── packages/
 │   └── expense-service/ # Shared DB + Google Sheets CRUD
 ├── package.json         # Bun workspaces + Turborepo
@@ -23,12 +22,12 @@ expense-mcp/
 | Layer | Tech | Role |
 |-------|------|------|
 | Frontend | React + Vite + Tailwind | Dashboard, summaries, settings |
-| Backend | Express + TypeScript | REST API, OAuth, Sheets proxy |
-| Database | SQLite (sql.js) | Users, tokens, API keys, tags |
+| Backend | Express + TypeScript | REST API, OAuth, MCP server |
+| Database | SQLite (sql.js) | Users, tokens, MCP clients, tags |
 | Expense Store | Google Sheets API | Per-user expense spreadsheets |
 | Auth (Web) | Google OAuth 2.0 + JWT | Sign-in, session management |
-| Auth (MCP) | API key (SHA-256 in SQLite) | Machine-to-machine |
-| MCP Server | @modelcontextprotocol/sdk | AI client tools (stdio) |
+| Auth (MCP Remote) | OAuth 2.1 + PKCE (S256) | AI assistant authorization |
+| MCP Transport | Streamable HTTP | Remote MCP via HTTP POST |
 
 ---
 
@@ -40,6 +39,7 @@ expense-mcp/
   - Google People API (for user profile info)
 - **OAuth 2.0 credentials** (Web application type) with:
   - Authorized redirect URI: `http://localhost:3001/auth/google/callback`
+- **ngrok** (or any tunnel) for connecting AI assistants (Claude.ai, ChatGPT)
 
 ---
 
@@ -64,22 +64,6 @@ GOOGLE_CLIENT_SECRET=your-client-secret
 JWT_SECRET=generate-a-random-secret-here
 ```
 
-> `GOOGLE_REDIRECT_URI` and `FRONTEND_URL` default to `http://localhost:3001` and `http://localhost:5173` — change only if you run on different ports.
-
-### 2. (Optional) Configure client URL
-
-```sh
-cp apps/client/.env.example apps/client/.env
-```
-
-Update if needed:
-
-```env
-VITE_API_URL=http://localhost:3001
-```
-
-> Note: `.env.example` defaults to port `3000` — change to `3001` to match the server default.
-
 ---
 
 ## Running
@@ -87,21 +71,62 @@ VITE_API_URL=http://localhost:3001
 ### Development
 
 ```sh
-# Start everything (server + client)
-bun run dev
-
-# Or individually:
-bun run --filter @expense/server dev
-bun run --filter @expense/client dev
+# Start the server (serves both API + built frontend)
+cd apps/server && USE_MOCK_DATA=true PORT=3000 bun run src/index.ts
 ```
 
-Open `http://localhost:5173` and sign in with Google.
+Open `http://localhost:3000` and sign in with Google.
 
-### Production build
+> Use `USE_MOCK_DATA=true` for development — generates sample expenses without a Google Sheet.
+
+---
+
+## Connecting AI Assistants (Claude.ai / ChatGPT)
+
+The server includes an embedded OAuth 2.1 authorization server + MCP Streamable HTTP endpoint so cloud AI assistants can manage your expenses through natural language.
+
+### 1. Expose your server
 
 ```sh
-bun run build
+ngrok http 3000
 ```
+
+Copy your ngrok URL (e.g. `https://abc123.ngrok.io`).
+
+### 2. Start the server with your public URL
+
+```sh
+cd apps/server && USE_MOCK_DATA=true PORT=3000 PUBLIC_URL=https://abc123.ngrok.io bun run src/index.ts
+```
+
+### 3. Open the app and generate credentials
+
+Open `https://abc123.ngrok.io` in your browser → Login → **Settings** → **AI Assistant Access**.
+
+Click **Claude.ai** or **ChatGPT** — a modal shows all 5 values with copy buttons:
+
+| Field | Example |
+|-------|---------|
+| Authorization URL | `https://abc123.ngrok.io/authorize` |
+| Token URL | `https://abc123.ngrok.io/token` |
+| MCP Server URL | `https://abc123.ngrok.io/mcp` |
+| Client ID | `550e8400-...` |
+| Client Secret | `abc123def...` |
+
+### 4. Configure in your AI assistant
+
+Paste the copied values into the assistant's MCP / OAuth settings. When the assistant opens the authorize page, sign in with Google to complete the connection.
+
+> **No curl or terminal needed.** The authorize page auto-registers unknown clients on first visit.
+
+### Tools available to AI assistants
+
+| Tool | Description |
+|------|-------------|
+| `add_expense` | Add expense with amount, tags, optional note/date |
+| `list_expenses` | List expenses with optional date/tag filters |
+| `get_summary` | Spending totals grouped by tag or month |
+| `delete_expense` | Soft-delete an expense by ID |
 
 ---
 
@@ -118,71 +143,9 @@ bun run build
 
 ### Settings
 - View connected Google account
-- **Generate API keys** — type a label, click Generate, copy the key (shown once)
-- Revoke keys as needed
-
----
-
-## MCP Server
-
-The MCP server lets AI clients (VS Code Copilot, Claude Desktop, etc.) log and query expenses via natural language.
-
-### Tools
-
-| Tool | Description |
-|------|-------------|
-| `add_expense` | Add expense with amount, tags, optional note/date |
-| `list_expenses` | List expenses with optional date/tag filters |
-| `get_summary` | Spending totals grouped by tag or month |
-| `delete_expense` | Soft-delete an expense by ID |
-
-### VS Code / GitHub Copilot
-
-Create `.vscode/mcp.json` in the project root:
-
-```json
-{
-  "servers": {
-    "expense-tracker": {
-      "type": "stdio",
-      "command": "tsx",
-      "args": ["src/index.ts"],
-      "cwd": "${workspaceFolder}/apps/mcp",
-      "env": {
-        "EXPENSE_API_KEY": "<your-api-key>"
-      }
-    }
-  }
-}
-```
-
-1. Open the project in VS Code
-2. Switch Copilot Chat to **Agent** mode
-3. Click **Start** on the MCP server (or run MCP: List Servers from the command palette)
-4. Try: *"Add a coffee expense of ₹150"*
-
-### Other MCP Clients (Claude Desktop, etc.)
-
-```json
-{
-  "mcpServers": {
-    "expense-tracker": {
-      "command": "tsx",
-      "args": ["apps/mcp/src/index.ts"],
-      "env": {
-        "EXPENSE_API_KEY": "<your-api-key>"
-      }
-    }
-  }
-}
-```
-
-### Getting an API Key
-
-1. Sign into the web app
-2. Go to **Settings**
-3. Type a label (e.g. "VS Code") and click **Generate**
-4. Copy the key shown in the green banner
+- Generate and manage API keys
+- **Generate MCP credentials** for Claude.ai / ChatGPT with one click
+- View and revoke connected AI assistant clients
 
 ---
 
@@ -194,8 +157,6 @@ Creates a test user with API key + sample tags:
 bun run seed
 ```
 
-Outputs a JWT token and API key for local testing.
-
 ---
 
 ## Tech Stack
@@ -204,7 +165,7 @@ Outputs a JWT token and API key for local testing.
 - Express 4 + TypeScript
 - SQLite (sql.js)
 - Google Sheets API
-- @modelcontextprotocol/sdk
+- @modelcontextprotocol/sdk (MCP OAuth + Streamable HTTP)
 - Recharts
 - Lucide React (icons)
 - Turborepo + Bun workspaces
