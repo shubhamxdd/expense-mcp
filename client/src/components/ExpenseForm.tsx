@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plus } from 'lucide-react'
 import TagInput from './TagInput'
+import type { TagInputHandle } from './TagInput'
 import ToastContainer, { useToasts } from './Toast'
 import { api } from '../services/api'
 import type { Expense } from '../types/expense'
@@ -17,11 +18,13 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const { toasts, addToast, dismissToast } = useToasts()
+  const tagInputRef = useRef<TagInputHandle>(null)
 
   useEffect(() => { api.listTags().then(setSuggestions).catch(() => {}) }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    tagInputRef.current?.commitPending()
     const numAmount = parseFloat(amount)
     if (isNaN(numAmount) || numAmount <= 0) return
     setSubmitting(true)
@@ -78,7 +81,7 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="block text-xs text-text-muted mb-1 font-mono uppercase tracking-wider">Tags</label>
-            <TagInput tags={tags} suggestions={suggestions} onChange={setTags} />
+            <TagInput tags={tags} suggestions={suggestions} onChange={setTags} ref={tagInputRef} />
           </div>
           <div className="flex-[2]">
             <label className="block text-xs text-text-muted mb-1 font-mono uppercase tracking-wider">Note</label>

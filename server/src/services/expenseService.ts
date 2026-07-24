@@ -187,6 +187,7 @@ export async function addExpense(
   const sheetName = getSheetName()
 
   await sheets.spreadsheets.values.append({
+    spreadsheetId: sheetId,
     range: `${sheetName}!A:G`,
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
