@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts'
-import { fetchMockSummary } from '../services/mockData'
+import { api } from '../services/api'
 
 const COLORS = ['#1A1A1A', '#4A4A4A', '#7A756D', '#B33A3A', '#3A7B4A', '#2B2B2B', '#D4CDC0', '#8B7D6B']
 
@@ -13,10 +13,10 @@ export default function Summary() {
 
   useEffect(() => {
     setLoading(true)
-    fetchMockSummary(by, from || undefined, to || undefined).then(d => {
-      setData(d)
-      setLoading(false)
-    })
+    api.getSummary(by, from || undefined, to || undefined)
+      .then(setData)
+      .catch(() => setData([]))
+      .finally(() => setLoading(false))
   }, [by, from, to])
 
   return (
@@ -82,7 +82,7 @@ export default function Summary() {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={({ name, payload }: { name?: string; payload?: { total: number }; percent?: number }) => {
+                  label={({ name, payload }: { name?: string; payload?: { total: number } }) => {
                     const total = data.reduce((s, d) => s + d.total, 0)
                     const pct = total ? ((payload?.total ?? 0) / total * 100).toFixed(0) : 0
                     return `${name} (${pct}%)`

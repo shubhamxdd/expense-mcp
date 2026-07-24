@@ -54,37 +54,26 @@ expense-mcp/
 │   │   ├── pages/           # Route-level page components
 │   │   ├── components/      # Reusable UI components
 │   │   ├── hooks/           # Custom React hooks (data fetching, etc.)
-│   │   ├── services/        # API client functions
+│   │   ├── services/        # API client (api.ts), mock data (mockData.ts)
 │   │   ├── types/           # Frontend-specific types
-│   │   ├── App.tsx          # Router setup
+│   │   ├── App.tsx          # Router setup with auth handling
 │   │   └── main.tsx         # Entry point
 │   ├── index.html
-│   ├── tailwind.config.js
-│   ├── tsconfig.json
 │   └── vite.config.ts
 ├── server/                  # Express API
 │   ├── src/
 │   │   ├── routes/          # Express route handlers
 │   │   ├── middleware/      # Auth, validation, error handling
-│   │   ├── services/        # Google OAuth, Sheets API wrappers
-│   │   ├── db/              # SQLite schema, queries, migrations
-│   │   ├── types/           # Server-specific types
+│   │   ├── services/        # OAuth, Sheets API wrappers, expenseService
+│   │   ├── db/              # SQLite init (sql.js), schema, queries
+│   │   ├── types/           # Type declarations (sql.js)
 │   │   └── index.ts         # Entry point
-│   ├── tsconfig.json
-│   └── package.json
-├── mcp/                     # MCP Server
-│   ├── src/
-│   │   ├── tools/           # MCP tool definitions
-│   │   ├── auth/            # API key validation
-│   │   └── index.ts         # Entry point
-│   ├── tsconfig.json
-│   └── package.json
-├── shared/                  # Shared data-access layer
-│   ├── expenseService.ts    # Expense CRUD (reads/writes Sheets)
-│   ├── types.ts             # Shared types (Expense, User, etc.)
-│   ├── validation.ts        # Zod schemas for expense input
-│   └── cache.ts             # In-memory cache per user
-├── context/                 # Project context files (this folder)
+│   ├── data/                # SQLite database file (gitignored)
+│   └── .env
+├── mcp/                     # MCP Server (Phase 3)
+├── shared/                  # Shared type definitions
+│   └── types.ts             # Expense, User, ApiKey interfaces
+├── context/                 # Project context files
 ├── PLAN.md
 └── AGENTS.md
 ```

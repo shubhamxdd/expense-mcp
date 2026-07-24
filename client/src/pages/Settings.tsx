@@ -1,31 +1,41 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Key, Plus, Trash2, Copy, Check, User } from 'lucide-react'
-import { mockUser, mockApiKeys as initialKeys, generateId } from '../services/mockData'
+import { api } from '../services/api'
 
 export default function Settings() {
-  const [apiKeys, setApiKeys] = useState(initialKeys)
+  const [apiKeys, setApiKeys] = useState<any[]>([])
   const [newLabel, setNewLabel] = useState('')
   const [justCreated, setJustCreated] = useState<string | null>(null)
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null)
+  const [userInfo, setUserInfo] = useState<{ id: string; email: string } | null>(null)
 
-  const createKey = () => {
+  useEffect(() => {
+    api.getMe().then(setUserInfo).catch(() => {})
+    api.listApiKeys().then(setApiKeys).catch(() => {})
+  }, [])
+
+  const createKey = async () => {
     if (!newLabel.trim()) return
-    const rawKey = `exp_${generateId().replace(/-/g, '').slice(0, 24)}`
-    const key = {
-      id: generateId(),
-      label: newLabel,
-      created_at: new Date().toISOString(),
-      last_used_at: null,
-      revoked_at: null,
-      key_preview: rawKey.slice(0, 5) + '••••' + rawKey.slice(-4),
-    }
-    setApiKeys(prev => [key, ...prev])
-    setJustCreated(rawKey)
-    setNewLabel('')
+    try {
+      const key = await api.createApiKey(newLabel)
+      setApiKeys(prev => [{
+        id: key.id,
+        label: key.label,
+        created_at: key.created_at,
+        last_used_at: null,
+        revoked_at: null,
+        key_preview: key.raw_key.slice(0, 5) + '••••' + key.raw_key.slice(-4),
+      }, ...prev])
+      setJustCreated(key.raw_key)
+      setNewLabel('')
+    } catch {}
   }
 
-  const revokeKey = (id: string) => {
-    setApiKeys(prev => prev.map(k => k.id === id ? { ...k, revoked_at: new Date().toISOString() } : k))
+  const revokeKey = async (id: string) => {
+    try {
+      await api.revokeApiKey(id)
+      setApiKeys(prev => prev.map(k => k.id === id ? { ...k, revoked_at: new Date().toISOString() } : k))
+    } catch {}
   }
 
   const copyToClipboard = (text: string, id: string) => {
@@ -43,13 +53,10 @@ export default function Settings() {
         <div className="flex items-center gap-3">
           <User size={20} className="text-text-muted" />
           <div>
-            <p className="text-text-primary font-medium">{mockUser.name}</p>
-            <p className="text-text-muted text-sm">{mockUser.email}</p>
+            <p className="text-text-primary font-medium">{userInfo?.email || 'Loading...'}</p>
+            <p className="text-text-muted text-sm">Signed in via Google</p>
           </div>
         </div>
-        <p className="text-xs text-text-muted">
-          Your expenses are stored in a Google Sheet named "Expense Tracker — {mockUser.name}".
-        </p>
       </section>
 
       <section className="space-y-4">
@@ -98,7 +105,7 @@ export default function Settings() {
           <p className="text-sm text-text-muted">No API keys yet.</p>
         ) : (
           <div className="space-y-2">
-            {apiKeys.map(key => (
+            {apiKeys.map((key: any) => (
               <div
                 key={key.id}
                 className={`flex items-center gap-3 px-3 py-2 border border-border-default rounded-[2px] ${

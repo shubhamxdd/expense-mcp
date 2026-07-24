@@ -1,31 +1,45 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import ExpenseForm from '../components/ExpenseForm'
 import ExpenseList from '../components/ExpenseList'
 import ExpenseFilters from '../components/ExpenseFilters'
 import CurrentMonthTotal from '../components/CurrentMonthTotal'
-import { fetchMockExpenses, deleteMockExpense, fetchMockTags } from '../services/mockData'
+import { api } from '../services/api'
 import type { Expense } from '../types/expense'
 
 export default function Dashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([])
-  const [loading, setLoading] = useState(true)
   const [allTags, setAllTags] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
 
-  useState(() => {
-    fetchMockTags().then(setAllTags)
-    fetchMockExpenses().then(data => { setExpenses(data); setLoading(false) })
-  })
-
-  const handleFilter = useCallback(async (filters: { from?: string; to?: string; tags?: string[] }) => {
+  const loadExpenses = useCallback(async (filters?: { from?: string; to?: string; tags?: string }) => {
     setLoading(true)
-    const data = await fetchMockExpenses(filters)
-    setExpenses(data)
+    try {
+      const data = await api.listExpenses(filters)
+      setExpenses(data)
+    } catch {
+      setExpenses([])
+    }
     setLoading(false)
   }, [])
 
+  useEffect(() => {
+    api.listTags().then(setAllTags).catch(() => {})
+    loadExpenses()
+  }, [loadExpenses])
+
+  const handleFilter = useCallback((filters: { from?: string; to?: string; tags?: string[] }) => {
+    loadExpenses({
+      from: filters.from,
+      to: filters.to,
+      tags: filters.tags?.join(','),
+    })
+  }, [loadExpenses])
+
   const handleDelete = async (id: string) => {
-    await deleteMockExpense(id)
-    setExpenses(prev => prev.filter(e => e.id !== id))
+    try {
+      await api.deleteExpense(id)
+      setExpenses(prev => prev.filter(e => e.id !== id))
+    } catch {}
   }
 
   const handleExpenseAdded = (expense: Expense) => {

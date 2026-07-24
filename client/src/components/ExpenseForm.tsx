@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 import TagInput from './TagInput'
-import { addMockExpense, fetchMockTags } from '../services/mockData'
+import { api } from '../services/api'
 import type { Expense } from '../types/expense'
 
 interface ExpenseFormProps {
@@ -16,20 +16,22 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => { fetchMockTags().then(setSuggestions) }, [])
+  useEffect(() => { api.listTags().then(setSuggestions).catch(() => {}) }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const numAmount = parseFloat(amount)
     if (isNaN(numAmount) || numAmount <= 0) return
     setSubmitting(true)
-    const expense = await addMockExpense({ amount: numAmount, tags, note, date })
-    setAmount('')
-    setTags([])
-    setNote('')
-    setDate(new Date().toISOString().slice(0, 10))
+    try {
+      const expense = await api.createExpense({ amount: numAmount, tags, note, date })
+      setAmount('')
+      setTags([])
+      setNote('')
+      setDate(new Date().toISOString().slice(0, 10))
+      onExpenseAdded(expense)
+    } catch {}
     setSubmitting(false)
-    onExpenseAdded(expense)
   }
 
   return (
