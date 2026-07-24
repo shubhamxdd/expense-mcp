@@ -4,7 +4,7 @@
       "type": "stdio",
       "command": "tsx",
       "args": ["src/index.ts"],
-      "cwd": "${workspaceFolder}/mcp",
+      "cwd": "${workspaceFolder}/apps/mcp",
       "env": {
         "EXPENSE_API_KEY": "exp_5e61821f91075a534ae961e1e6b2719b81cebc6406ded2c7"
       }

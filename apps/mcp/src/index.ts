@@ -10,7 +10,7 @@ import { validateApiKey } from './auth.js'
 import { addExpense, listExpenses, getSummary, deleteExpense } from '@expense/expense-service'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-dotenv.config({ path: resolve(__dirname, '../server/.env') })
+dotenv.config({ path: resolve(__dirname, '../../server/.env') })
 
 const API_KEY = process.env.EXPENSE_API_KEY
 if (!API_KEY) {
