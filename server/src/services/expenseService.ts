@@ -19,6 +19,27 @@ interface ListOptions {
   tags?: string[]
 }
 
+const USE_MOCK = process.env.USE_MOCK_DATA === 'true'
+
+// In-memory mock data for testing without Google Sheets
+let mockExpenses: Expense[] = []
+let mockInitialized = false
+
+function initMockData() {
+  if (mockInitialized) return
+  mockInitialized = true
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 86400000).toISOString().slice(0, 10)
+  mockExpenses = [
+    { id: 'm1', date: today, amount: 450, tags: ['lunch', 'food'], note: 'Biryani', created_at: new Date().toISOString() },
+    { id: 'm2', date: today, amount: 200, tags: ['coffee'], note: 'Cold brew', created_at: new Date(Date.now() - 3600000).toISOString() },
+    { id: 'm3', date: daysAgo(1), amount: 15000, tags: ['rent'], note: 'June rent', created_at: new Date(Date.now() - 86400000).toISOString() },
+    { id: 'm4', date: daysAgo(2), amount: 3200, tags: ['groceries'], note: 'Weekly groceries', created_at: new Date(Date.now() - 172800000).toISOString() },
+    { id: 'm5', date: daysAgo(3), amount: 850, tags: ['fuel'], note: 'Petrol', created_at: new Date(Date.now() - 259200000).toISOString() },
+  ]
+}
+
 let sheetsClient: sheets_v4.Sheets | null = null
 let currentUserId: string | null = null
 let currentSheetId: string | null = null
@@ -115,6 +136,18 @@ async function fetchAllExpenses(userId: string): Promise<Expense[]> {
 }
 
 export async function listExpenses(userId: string, options: ListOptions = {}): Promise<Expense[]> {
+  if (USE_MOCK) {
+    initMockData()
+    let expenses = [...mockExpenses]
+    if (options.from) expenses = expenses.filter(e => e.date >= options.from!)
+    if (options.to) expenses = expenses.filter(e => e.date <= options.to!)
+    if (options.tags && options.tags.length > 0) {
+      expenses = expenses.filter(e => options.tags!.some(t => e.tags.includes(t)))
+    }
+    expenses.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    return expenses
+  }
+
   let expenses = await fetchAllExpenses(userId)
 
   if (options.from) expenses = expenses.filter(e => e.date >= options.from!)
@@ -131,10 +164,6 @@ export async function addExpense(
   userId: string,
   expense: { date: string; amount: number; tags: string[]; note: string }
 ): Promise<Expense> {
-  const sheets = await getSheetsClient(userId)
-  const sheetId = getSheetId()
-  const sheetName = getSheetName()
-
   const newExpense: Expense = {
     id: crypto.randomUUID(),
     date: expense.date,
@@ -144,8 +173,17 @@ export async function addExpense(
     created_at: new Date().toISOString(),
   }
 
+  if (USE_MOCK) {
+    initMockData()
+    mockExpenses.unshift(newExpense)
+    return newExpense
+  }
+
+  const sheets = await getSheetsClient(userId)
+  const sheetId = getSheetId()
+  const sheetName = getSheetName()
+
   await sheets.spreadsheets.values.append({
-    spreadsheetId: sheetId,
     range: `${sheetName}!A:G`,
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
@@ -182,6 +220,14 @@ export async function updateExpense(
   expenseId: string,
   updates: { date?: string; amount?: number; tags?: string[]; note?: string }
 ): Promise<Expense> {
+  if (USE_MOCK) {
+    initMockData()
+    const idx = mockExpenses.findIndex(e => e.id === expenseId)
+    if (idx === -1) throw new Error('NOT_FOUND')
+    mockExpenses[idx] = { ...mockExpenses[idx], ...updates }
+    return mockExpenses[idx]
+  }
+
   const sheets = await getSheetsClient(userId)
   const sheetId = getSheetId()
   const sheetName = getSheetName()
@@ -225,6 +271,14 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(userId: string, expenseId: string): Promise<void> {
+  if (USE_MOCK) {
+    initMockData()
+    const idx = mockExpenses.findIndex(e => e.id === expenseId)
+    if (idx === -1) throw new Error('NOT_FOUND')
+    mockExpenses.splice(idx, 1)
+    return
+  }
+
   const sheets = await getSheetsClient(userId)
   const sheetId = getSheetId()
   const sheetName = getSheetName()
