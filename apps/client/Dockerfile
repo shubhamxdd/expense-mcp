@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json bun.lock turbo.json ./
 COPY apps/client/package.json apps/client/
 COPY packages/expense-service/package.json packages/expense-service/
-RUN bun install --frozen-lockfile
+RUN bun install
 
 COPY apps/client apps/client
 COPY packages packages
