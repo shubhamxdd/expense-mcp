@@ -4,24 +4,31 @@
 
 | Layer          | Technology                     | Role                                        |
 | -------------- | ------------------------------ | ------------------------------------------- |
-| Frontend       | React (Vite) + TypeScript      | SPA: expense entry, dashboard, summaries    |
+| Web Frontend   | React (Vite) + TypeScript      | SPA: expense entry, dashboard, summaries    |
 | UI Styling     | Tailwind CSS                   | Utility-first styling with CSS custom props |
 | Routing        | React Router v6                | Client-side navigation                      |
 | Charts         | Recharts                       | Bar, pie, line charts for summaries         |
+| Mobile App     | React Native + Expo SDK 57     | iOS/Android native app                      |
+| Mobile Routing | Expo Router (file-based)       | Tab-based navigation (Dashboard, Summary, Settings) |
+| Mobile UI      | React Native core + Platform   | Native look per platform (Material You / HIG) |
+| Mobile Charts  | react-native-svg (custom SVG)  | Bar charts, distribution lists              |
+| Mobile State   | TanStack React Query           | Server state caching, mutations             |
+| Mobile Auth    | expo-auth-session + expo-secure-store | Google OAuth + JWT in keychain       |
 | Backend        | Node.js + Express + TypeScript | REST API, OAuth, Sheets proxy               |
-| Database       | SQLite (sql.js)                | Auth/plumbing: users, tokens, keys, tags    |
+| Database       | PostgreSQL (via `pg`)          | Auth/plumbing: users, tokens, keys, tags    |
 | Expense Store  | Google Sheets API              | Each user's expense data in their own sheet |
 | Auth (Web)     | Google OAuth 2.0 + JWT         | Sign-in, session management                 |
 | Auth (MCP)     | API key (hashed in SQLite)     | Machine-to-machine auth for MCP server      |
-| MCP Server     | Node + @modelcontextprotocol/sdk | MCP tools layer over expense service        |
+| MCP Server     | Node + @modelcontextprotocol/sdk | MCP tools layer over expense service      |
 | Icons          | Lucide React                   | Stroke-based icons                          |
 
 ## System Boundaries
 
 - `client/` — React SPA. Owns: pages, UI components, React Router config, API client hooks, local state. Talks to the backend REST API only.
-- `server/` — Express API + SQLite. Owns: route handlers, Google OAuth flow, JWT session management, Google Sheets API calls, expense CRUD service (expenseService.ts). Exposes REST endpoints consumed by the frontend.
+- `server/` — Express API + SQLite. Owns: route handlers, Google OAuth flow, JWT session management, Google Sheets API calls, expense CRUD service (expenseService.ts). Exposes REST endpoints consumed by the frontend and mobile app.
 - `mcp/` — (Phase 3) MCP server process using `@modelcontextprotocol/sdk`. Thin layer — imports expenseService from `server/`.
 - `shared/` — Shared type definitions (`types.ts`). Imported by `client/` and `server/`.
+- `apps/mobile/` — React Native Expo app. Owns: screens, reusable UI components, TanStack React Query hooks, SecureStore token management. Talks to the same Express REST API as the web client. Includes a local Expo module (`modules/notification-listener/`) for Android notification capture.
 
 ## Storage Model
 

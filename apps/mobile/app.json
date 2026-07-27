@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Expense Tracker",
+    "slug": "expense-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "expenseapp",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.expense.tracker",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app does not use the camera."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1A1A1A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.expense.tracker",
+      "permissions": [
+        "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_SMS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      "./plugins/withNotificationListener"
+    ]
+  }
+}

@@ -51,6 +51,19 @@ A multi-user expense tracker composed of three parts: a React web app for manual
 - Tools: `add_expense`, `list_expenses`, `get_summary`, `delete_expense`
 - Auth via user-generated API key
 
+### Mobile App (Phase 6)
+- React Native Expo app with file-based routing (Expo Router)
+- Native platform look and feel (Material You on Android, HIG on iOS)
+- Full feature parity with web client
+- Google OAuth via `expo-auth-session` + `expo-web-browser`
+- API communication via TanStack React Query with JWT from SecureStore
+- Android: NotificationListenerService captures UPI/banking notifications, prompts user to tag the expense
+- iOS: SMS detection (limited, falls back to manual entry)
+- Three tabs: Dashboard, Summary, Settings
+- Dashboard: add/view/edit/delete expenses, filters, current month total, auto-capture setup
+- Summary: toggle by-tag/by-month, date range picker, bar charts, distribution list, data table
+- Settings: account info, API key CRUD, MCP assistant registration (Claude.ai, ChatGPT)
+
 ## Scope
 
 ### In Scope
