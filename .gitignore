@@ -9,5 +9,6 @@ build/
 .DS_Store
 *.log
 opencode.jsonc
-bun.lock
 .vscode/
+
+*.env
