@@ -4,8 +4,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit"
   },
@@ -16,6 +16,7 @@
     "expo": "~57.0.8",
     "expo-auth-session": "~57.0.5",
     "expo-constants": "~57.0.7",
+    "expo-dev-client": "~57.0.9",
     "expo-linking": "~57.0.4",
     "expo-modules-core": "~57.0.7",
     "expo-router": "~57.0.8",
