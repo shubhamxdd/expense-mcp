@@ -1,8 +1,6 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
 export default function McpAuth() {
   const [params] = useSearchParams()
 
@@ -30,7 +28,7 @@ export default function McpAuth() {
 
     const form = document.createElement('form')
     form.method = 'POST'
-    form.action = `${API_BASE}/authorize`
+    form.action = '/authorize'
 
     const fields: Record<string, string | null> = {
       client_id: params.get('client_id'),
