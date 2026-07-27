@@ -3,14 +3,14 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { getDb, saveDb, closeDb, createTables } from '@expense/expense-service'
+import { getDb, closeDb, createTables } from '@expense/expense-service'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/user.js'
 import expenseRoutes from './routes/expenses.js'
 import tagRoutes from './routes/tags.js'
 import summaryRoutes from './routes/summary.js'
 import apikeyRoutes from './routes/apikeys.js'
-import { oauthRouter, mcpApiRouter, ensureOAuthTables } from './mcp-oauth.js'
+import { oauthRouter, mcpApiRouter } from './mcp-oauth.js'
 import { authMiddleware } from './middleware/auth.js'
 import { mcpAuthMiddleware, handleMcpRequest } from './mcp-handler.js'
 import 'dotenv/config'
@@ -61,8 +61,6 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 async function start() {
   const db = await getDb()
   await createTables(db)
-  saveDb()
-  ensureOAuthTables(db)
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)

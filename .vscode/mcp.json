@@ -6,7 +6,7 @@
       "args": ["src/index.ts"],
       "cwd": "${workspaceFolder}/apps/mcp",
       "env": {
-        "EXPENSE_API_KEY": "exp_5e61821f91075a534ae961e1e6b2719b81cebc6406ded2c7"
+        "EXPENSE_API_KEY": "exp_2bf4ab4ad4cc383c88f8fffd10c6fed30ad850a531406271"
       }
     }
   }

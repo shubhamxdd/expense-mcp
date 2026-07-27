@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { randomUUID, createHash, randomBytes } from 'node:crypto'
-import { getDb, saveDb, queryOne, queryAll, execute } from '@expense/expense-service'
+import { getDb, queryOne, queryAll, execute } from '@expense/expense-service'
 import jwt from 'jsonwebtoken'
 import express from 'express'
 
@@ -8,47 +8,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
 const BASE_URL = process.env.PUBLIC_URL || `http://localhost:${parseInt(process.env.PORT || '3001', 10)}`
 const SERVER_URL = `${BASE_URL}/mcp`
 const ISSUER_URL = BASE_URL
-
-export function ensureOAuthTables(db: any) {
-  db.run(`CREATE TABLE IF NOT EXISTS oauth_clients (
-    client_id TEXT PRIMARY KEY,
-    client_secret TEXT,
-    redirect_uris TEXT NOT NULL,
-    grant_types TEXT NOT NULL DEFAULT '["authorization_code","refresh_token"]',
-    response_types TEXT NOT NULL DEFAULT '["code"]',
-    client_name TEXT,
-    scope TEXT DEFAULT '',
-    client_id_issued_at INTEGER,
-    client_secret_expires_at INTEGER,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`)
-  db.run(`CREATE TABLE IF NOT EXISTS oauth_auth_codes (
-    code TEXT PRIMARY KEY,
-    client_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    scope TEXT,
-    code_challenge TEXT NOT NULL,
-    code_challenge_method TEXT NOT NULL DEFAULT 'S256',
-    redirect_uri TEXT NOT NULL,
-    resource TEXT,
-    expires_at TEXT NOT NULL,
-    used INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id)
-  )`)
-  db.run(`CREATE TABLE IF NOT EXISTS oauth_tokens (
-    id TEXT PRIMARY KEY,
-    access_token_hash TEXT NOT NULL,
-    refresh_token_hash TEXT,
-    client_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    scope TEXT DEFAULT '',
-    expires_at TEXT NOT NULL,
-    refresh_expires_at TEXT,
-    revoked_at TEXT,
-    FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id)
-  )`)
-  saveDb()
-}
 
 function generateAuthCode(): string {
   return randomUUID().replace(/-/g, '') + randomBytes(16).toString('hex')
@@ -103,10 +62,10 @@ oauthRouter.post('/register', express.json(), async (req, res) => {
     const secretExpiry = isPublic ? undefined : now + 30 * 24 * 60 * 60
 
     const db = await getDb()
-    execute(db, `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, client_id_issued_at, client_secret_expires_at)
+    await execute(db, `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, client_id_issued_at, client_secret_expires_at)
       VALUES (?, ?, ?, ?, ?, ?)`,
       [clientId, clientSecret, JSON.stringify(redirect_uris), client_name || null, now, secretExpiry ?? null])
-    saveDb()
+
 
     res.status(201).json({
       client_id: clientId,
@@ -134,8 +93,8 @@ oauthRouter.post('/revoke', express.urlencoded({ extended: false }), async (req,
     const hash = createHash('sha256').update(token).digest('hex')
     const db = await getDb()
     const field = token_type_hint === 'refresh_token' ? 'refresh_token_hash' : 'access_token_hash'
-    execute(db, `UPDATE oauth_tokens SET revoked_at = datetime('now') WHERE ${field} = ? AND revoked_at IS NULL`, [hash])
-    saveDb()
+    await execute(db, `UPDATE oauth_tokens SET revoked_at = NOW() WHERE ${field} = ? AND revoked_at IS NULL`, [hash])
+
     res.status(200).json({})
   } catch {
     res.status(200).json({})
@@ -167,13 +126,13 @@ oauthRouter.all('/authorize', (req, res, next) => {
   }
 
   const db = await getDb()
-  let client = queryOne(db, 'SELECT * FROM oauth_clients WHERE client_id = ?', [client_id])
+  let client = await queryOne(db, 'SELECT * FROM oauth_clients WHERE client_id = ?', [client_id])
   if (!client) {
-    execute(db, `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, client_id_issued_at)
+    await execute(db, `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, client_id_issued_at)
       VALUES (?, ?, ?, ?, ?)`,
       [client_id, null, JSON.stringify([redirect_uri]), null, Math.floor(Date.now() / 1000)])
-    saveDb()
-    client = queryOne(db, 'SELECT * FROM oauth_clients WHERE client_id = ?', [client_id])
+
+    client = await queryOne(db, 'SELECT * FROM oauth_clients WHERE client_id = ?', [client_id])
   }
   if (!client) {
     res.status(500).json({ error: 'server_error', error_description: 'Failed to create or find client' })
@@ -189,9 +148,9 @@ oauthRouter.all('/authorize', (req, res, next) => {
   }
   if (!registeredUris.includes(finalRedirect)) {
     registeredUris.push(finalRedirect)
-    execute(db, 'UPDATE oauth_clients SET redirect_uris = ? WHERE client_id = ?',
+    await execute(db, 'UPDATE oauth_clients SET redirect_uris = ? WHERE client_id = ?',
       [JSON.stringify(registeredUris), client_id])
-    saveDb()
+
   }
 
   if (req.method === 'POST' && req.body.token) {
@@ -203,10 +162,10 @@ oauthRouter.all('/authorize', (req, res, next) => {
       res.cookie('mcp_token', req.body.token, { httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 })
 
       const code = generateAuthCode()
-      execute(db, `INSERT INTO oauth_auth_codes (code, client_id, user_id, scope, code_challenge, code_challenge_method, redirect_uri, resource, expires_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+10 minutes'))`,
+      await execute(db, `INSERT INTO oauth_auth_codes (code, client_id, user_id, scope, code_challenge, code_challenge_method, redirect_uri, resource, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW() + INTERVAL '10 minutes')`,
         [code, client_id, userId, scope || '', code_challenge, code_challenge_method, finalRedirect, null])
-      saveDb()
+  
 
       const url = new URL(finalRedirect)
       url.searchParams.set('code', code)
@@ -243,24 +202,24 @@ oauthRouter.all('/authorize', (req, res, next) => {
     return `/auth/google?state=${encodeURIComponent(mcpState)}`
   }
 
-  function completeAuthViaUserId(userId: string) {
+  async function completeAuthViaUserId(userId: string) {
     const code = generateAuthCode()
-    execute(db, `INSERT INTO oauth_auth_codes (code, client_id, user_id, scope, code_challenge, code_challenge_method, redirect_uri, resource, expires_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+10 minutes'))`,
+    await execute(db, `INSERT INTO oauth_auth_codes (code, client_id, user_id, scope, code_challenge, code_challenge_method, redirect_uri, resource, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW() + INTERVAL '10 minutes')`,
       [code, client_id, userId, scope || '', code_challenge, code_challenge_method, finalRedirect, null])
-    saveDb()
+
     const url = new URL(finalRedirect)
     url.searchParams.set('code', code)
     url.searchParams.set('state', state || '')
     res.redirect(302, url.toString())
   }
 
-  function tryCookieAuth(): boolean {
+  async function tryCookieAuth(): Promise<boolean> {
     const cookieToken = req.cookies?.mcp_token as string | undefined
     if (!cookieToken) return false
     try {
       const payload = jwt.verify(cookieToken, JWT_SECRET) as any
-      completeAuthViaUserId(payload.userId)
+      await completeAuthViaUserId(payload.userId)
       return true
     } catch {
       return false
@@ -269,7 +228,7 @@ oauthRouter.all('/authorize', (req, res, next) => {
 
   // POST without token — user clicked "Login with Google" or submitted the <form>
   if (req.method === 'POST' && !req.body.token) {
-    if (tryCookieAuth()) return
+    if (await tryCookieAuth()) return
     // No cookie — redirect to the main app so it can grab JWT from localStorage
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
     const redirectParams = new URLSearchParams({
@@ -287,7 +246,7 @@ oauthRouter.all('/authorize', (req, res, next) => {
 
   // GET — initial page load
   if (req.method === 'GET') {
-    if (tryCookieAuth()) return
+    if (await tryCookieAuth()) return
 
     const hiddenFields = `
       <input type="hidden" name="client_id" value="${escapeHtml(client_id)}">
@@ -333,7 +292,7 @@ oauthRouter.post('/token', express.urlencoded({ extended: false }), async (req, 
         return
       }
 
-      const authCode = queryOne(db, 'SELECT * FROM oauth_auth_codes WHERE code = ? AND used = 0 AND expires_at > datetime(\'now\')', [code])
+      const authCode = await queryOne(db, 'SELECT * FROM oauth_auth_codes WHERE code = ? AND used = 0 AND expires_at > NOW()', [code])
       if (!authCode) {
         res.status(400).json({ error: 'invalid_grant', error_description: 'Invalid or expired authorization code' })
         return
@@ -346,7 +305,7 @@ oauthRouter.post('/token', express.urlencoded({ extended: false }), async (req, 
         return
       }
 
-      execute(db, "UPDATE oauth_auth_codes SET used = 1 WHERE code = ?", [code])
+      await execute(db, "UPDATE oauth_auth_codes SET used = 1 WHERE code = ?", [code])
 
       const userId = authCode.user_id as string
       const scopes = (authCode.scope as string) || 'expenses:read expenses:write'
@@ -355,10 +314,10 @@ oauthRouter.post('/token', express.urlencoded({ extended: false }), async (req, 
       const accessHash = createHash('sha256').update(accessToken).digest('hex')
       const refreshHash = createHash('sha256').update(refreshTok).digest('hex')
 
-      execute(db, `INSERT INTO oauth_tokens (id, access_token_hash, refresh_token_hash, client_id, user_id, scope, expires_at, refresh_expires_at)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+1 hour'), datetime('now', '+30 days'))`,
+      await execute(db, `INSERT INTO oauth_tokens (id, access_token_hash, refresh_token_hash, client_id, user_id, scope, expires_at, refresh_expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW() + INTERVAL '1 hour', NOW() + INTERVAL '30 days')`,
         [randomUUID(), accessHash, refreshHash, authCode.client_id as string, userId, scopes])
-      saveDb()
+  
 
       res.json({
         access_token: accessToken,
@@ -377,23 +336,23 @@ oauthRouter.post('/token', express.urlencoded({ extended: false }), async (req, 
       }
 
       const refreshHash = createHash('sha256').update(refresh_token).digest('hex')
-      const stored = queryOne(db, 'SELECT * FROM oauth_tokens WHERE refresh_token_hash = ? AND revoked_at IS NULL AND refresh_expires_at > datetime(\'now\')', [refreshHash])
+      const stored = await queryOne(db, 'SELECT * FROM oauth_tokens WHERE refresh_token_hash = ? AND revoked_at IS NULL AND refresh_expires_at > NOW()', [refreshHash])
       if (!stored) {
         res.status(400).json({ error: 'invalid_grant', error_description: 'Invalid or expired refresh token' })
         return
       }
 
-      execute(db, 'UPDATE oauth_tokens SET revoked_at = datetime(\'now\') WHERE id = ?', [stored.id])
+      await execute(db, 'UPDATE oauth_tokens SET revoked_at = NOW() WHERE id = ?', [stored.id])
 
       const newAccessToken = randomUUID().replace(/-/g, '') + randomBytes(32).toString('hex')
       const newRefreshTok = randomUUID().replace(/-/g, '') + randomBytes(32).toString('hex')
       const newAccessHash = createHash('sha256').update(newAccessToken).digest('hex')
       const newRefreshHash = createHash('sha256').update(newRefreshTok).digest('hex')
 
-      execute(db, `INSERT INTO oauth_tokens (id, access_token_hash, refresh_token_hash, client_id, user_id, scope, expires_at, refresh_expires_at)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+1 hour'), datetime('now', '+30 days'))`,
+      await execute(db, `INSERT INTO oauth_tokens (id, access_token_hash, refresh_token_hash, client_id, user_id, scope, expires_at, refresh_expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW() + INTERVAL '1 hour', NOW() + INTERVAL '30 days')`,
         [randomUUID(), newAccessHash, newRefreshHash, stored.client_id as string, stored.user_id as string, stored.scope as string])
-      saveDb()
+  
 
       res.json({
         access_token: newAccessToken,
@@ -414,7 +373,7 @@ oauthRouter.post('/token', express.urlencoded({ extended: false }), async (req, 
 export async function verifyMcpToken(token: string): Promise<{ token: string; clientId: string; scopes: string[]; expiresAt?: number; extra?: Record<string, unknown> }> {
   const hash = createHash('sha256').update(token).digest('hex')
   const db = await getDb()
-  const row = queryOne(db, `SELECT * FROM oauth_tokens WHERE access_token_hash = ? AND revoked_at IS NULL AND expires_at > datetime('now')`, [hash])
+  const row = await queryOne(db, `SELECT * FROM oauth_tokens WHERE access_token_hash = ? AND revoked_at IS NULL AND expires_at > NOW()`, [hash])
   if (!row) throw new Error('Invalid or expired token')
   return {
     token,
@@ -456,10 +415,10 @@ mcpApiRouter.post('/mcp/register', async (req, res) => {
     const now = Math.floor(Date.now() / 1000)
     const secretExpiry = now + 30 * 24 * 60 * 60
 
-    execute(db, `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, client_id_issued_at, client_secret_expires_at)
+    await execute(db, `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, client_id_issued_at, client_secret_expires_at)
       VALUES (?, ?, ?, ?, ?, ?)`,
       [clientId, clientSecret, JSON.stringify(redirectUris), clientName, now, secretExpiry])
-    saveDb()
+
 
     res.status(201).json({
       data: {
@@ -487,7 +446,7 @@ mcpApiRouter.get('/mcp/clients', async (req, res) => {
     }
 
     const db = await getDb()
-    const rows = queryAll(db, `SELECT DISTINCT c.client_id, c.client_name, c.redirect_uris, c.created_at,
+    const rows = await queryAll(db, `SELECT DISTINCT c.client_id, c.client_name, c.redirect_uris, c.created_at,
       (SELECT COUNT(*) FROM oauth_tokens t WHERE t.client_id = c.client_id AND t.user_id = ? AND t.revoked_at IS NULL) as token_count
       FROM oauth_clients c
       WHERE EXISTS (SELECT 1 FROM oauth_tokens t WHERE t.client_id = c.client_id AND t.user_id = ? AND t.revoked_at IS NULL)
@@ -516,9 +475,9 @@ mcpApiRouter.delete('/mcp/clients/:clientId', async (req, res) => {
     }
 
     const db = await getDb()
-    execute(db, `UPDATE oauth_tokens SET revoked_at = datetime('now') WHERE client_id = ? AND user_id = ? AND revoked_at IS NULL`,
+    await execute(db, `UPDATE oauth_tokens SET revoked_at = NOW() WHERE client_id = ? AND user_id = ? AND revoked_at IS NULL`,
       [req.params.clientId, user.userId])
-    saveDb()
+
 
     res.json({ data: { success: true } })
   } catch (err: any) {

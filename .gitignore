@@ -10,3 +10,4 @@ build/
 *.log
 opencode.jsonc
 bun.lock
+.vscode/

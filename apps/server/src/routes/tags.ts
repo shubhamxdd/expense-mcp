@@ -9,7 +9,7 @@ router.get('/', async (req, res) => {
   try {
     const db = await getDb()
     await createTables(db)
-    const rows = queryAll(db, 'SELECT DISTINCT name FROM tags WHERE user_id = ? ORDER BY name', [req.user!.userId])
+    const rows = await queryAll(db, 'SELECT DISTINCT name FROM tags WHERE user_id = ? ORDER BY name', [req.user!.userId])
     const tags = rows.map(r => r.name as string)
     res.json({ data: tags })
   } catch (err) {

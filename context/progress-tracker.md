@@ -14,8 +14,20 @@ Remote MCP connection support via OAuth 2.1 + Streamable HTTP transport for clou
 - **Phase 2** — Backend API (Express + SQLite + Google OAuth + Sheets CRUD + frontend wiring)
 - **Phase 3** — MCP Stdio Server (local MCP client integration)
 - **Phase 4** — MCP OAuth 2.1 + Streamable HTTP (cloud chatbot support)
+- **Phase 5** — PostgreSQL migration + Docker Compose deployment
 
-**Phase 4 specifics:**
+**Phase 5 specifics:**
+- SQLite replaced with PostgreSQL via `pg` package
+- `packages/expense-service/src/database.ts` — uses `pg.Pool` with `DATABASE_URL`
+- `packages/expense-service/src/schema.ts` — async queries with `?` → `$1` auto-conversion, includes OAuth tables
+- `saveDb()` removed (PostgreSQL auto-commits), all `queryOne`/`queryAll`/`execute` calls made `async`
+- `apps/server/Dockerfile` — Bun runtime for Express API
+- `apps/client/Dockerfile` — multi-stage Bun build + Nginx serve
+- `apps/client/nginx.conf` — proxies `/api`, `/auth`, `/mcp`, `/.well-known`, `/authorize`, `/token`, `/register`, `/revoke` to server
+- `docker-compose.yml` — 3 services: PostgreSQL 16, Express server, Nginx client
+- Root `Dockerfile` and `.dockerignore` removed (replaced by per-app Dockerfiles)
+- `seed.ts` rewritten for PostgreSQL
+- `.env.example` updated with `DATABASE_URL` and `PUBLIC_URL`
 - Full OAuth 2.1 authorization server embedded in Express (`apps/server/src/mcp-oauth.ts`):
   - `GET /.well-known/oauth-authorization-server` — AS metadata
   - `GET /.well-known/oauth-protected-resource{/mcp}` — resource metadata
@@ -44,9 +56,9 @@ Remote MCP connection support via OAuth 2.1 + Streamable HTTP transport for clou
 
 ## Next Up
 
-- **(Now)** Dockerize for production deployment
+- **(Now)** First deployment — test `docker compose up` on Railway/Fly.io
 - **(Later)** CSV/PDF import
-- **(Later)** Token encryption at rest in SQLite
+- **(Later)** Token encryption at rest in PostgreSQL
 
 ## Architecture Decisions
 

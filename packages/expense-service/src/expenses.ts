@@ -1,6 +1,6 @@
 import { google } from 'googleapis'
 import type { sheets_v4 } from 'googleapis'
-import { getDb, saveDb } from './database.js'
+import { getDb } from './database.js'
 import { createTables, queryOne, execute } from './schema.js'
 
 export interface Expense {
@@ -49,7 +49,7 @@ async function getSheetsClient(userId: string) {
   const db = await getDb()
   await createTables(db)
 
-  const tokenRow = queryOne(db, 'SELECT refresh_token FROM google_tokens WHERE user_id = ?', [userId])
+  const tokenRow = await queryOne(db, 'SELECT refresh_token FROM google_tokens WHERE user_id = ?', [userId])
   if (!tokenRow) throw new Error('NO_TOKENS')
 
   const refreshToken = tokenRow.refresh_token as string
@@ -59,7 +59,7 @@ async function getSheetsClient(userId: string) {
   )
   oauth2.setCredentials({ refresh_token: refreshToken })
 
-  const sheetRow = queryOne(db, 'SELECT spreadsheet_id, sheet_name FROM sheets WHERE user_id = ?', [userId])
+  const sheetRow = await queryOne(db, 'SELECT spreadsheet_id, sheet_name FROM sheets WHERE user_id = ?', [userId])
   if (!sheetRow) throw new Error('NO_SHEET')
 
   const sid = sheetRow.spreadsheet_id as string | null
@@ -207,12 +207,11 @@ export async function addExpense(
   const db = await getDb()
   await createTables(db)
   for (const tag of expense.tags) {
-    const existing = queryOne(db, 'SELECT id FROM tags WHERE user_id = ? AND name = ?', [userId, tag])
+    const existing = await queryOne(db, 'SELECT id FROM tags WHERE user_id = ? AND name = ?', [userId, tag])
     if (!existing) {
-      execute(db, 'INSERT INTO tags (id, user_id, name) VALUES (?, ?, ?)', [crypto.randomUUID(), userId, tag])
+      await execute(db, 'INSERT INTO tags (id, user_id, name) VALUES (?, ?, ?)', [crypto.randomUUID(), userId, tag])
     }
   }
-  saveDb()
 
   return newExpense
 }
